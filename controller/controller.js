@@ -18,6 +18,39 @@ import * as ReactEmailPreview from '@react-email/preview';
 import Babel from '@babel/standalone';
 import { VM, VMScript } from 'vm2';
 
+// Import React Icons libraries
+import * as ReactIconsAi from 'react-icons/ai';
+import * as ReactIconsBi from 'react-icons/bi';
+import * as ReactIconsBs from 'react-icons/bs';
+import * as ReactIconsCg from 'react-icons/cg';
+import * as ReactIconsCi from 'react-icons/ci';
+import * as ReactIconsDi from 'react-icons/di';
+import * as ReactIconsFa from 'react-icons/fa';
+import * as ReactIconsFa6 from 'react-icons/fa6';
+import * as ReactIconsFc from 'react-icons/fc';
+import * as ReactIconsFi from 'react-icons/fi';
+import * as ReactIconsGi from 'react-icons/gi';
+import * as ReactIconsGo from 'react-icons/go';
+import * as ReactIconsGr from 'react-icons/gr';
+import * as ReactIconsHi from 'react-icons/hi';
+import * as ReactIconsHi2 from 'react-icons/hi2';
+import * as ReactIconsIm from 'react-icons/im';
+import * as ReactIconsIo from 'react-icons/io';
+import * as ReactIconsIo5 from 'react-icons/io5';
+import * as ReactIconsLia from 'react-icons/lia';
+import * as ReactIconsLu from 'react-icons/lu';
+import * as ReactIconsMd from 'react-icons/md';
+import * as ReactIconsPi from 'react-icons/pi';
+import * as ReactIconsRi from 'react-icons/ri';
+import * as ReactIconsRx from 'react-icons/rx';
+import * as ReactIconsSi from 'react-icons/si';
+import * as ReactIconsSl from 'react-icons/sl';
+import * as ReactIconsTb from 'react-icons/tb';
+import * as ReactIconsTfi from 'react-icons/tfi';
+import * as ReactIconsTi from 'react-icons/ti';
+import * as ReactIconsVsc from 'react-icons/vsc';
+import * as ReactIconsWi from 'react-icons/wi';
+
 // Platform-specific formatting functions
 const addHubSpotFormatting = (html) => {
     // HubSpot-specific modifications
@@ -212,221 +245,3 @@ const addKlaviyoFormatting = (html) => {
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
         <tr>
             <td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">
-                {% if organization.name %}{{ organization.name }}{% endif %}<br>
-                {% if organization.address %}{{ organization.address }}{% endif %}<br>
-                <a href="{% unsubscribe_url %}" style="color: #666666;">Unsubscribe</a> | 
-                <a href="{% manage_preferences_url %}" style="color: #666666;">Manage Preferences</a>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>`;
-    
-    // Replace common patterns with Klaviyo template variables
-    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"there" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.email\}\}/g, '{{ person.email }}');
-    klaviyoHtml = klaviyoHtml.replace(/href="#unsubscribe"/g, 'href="{% unsubscribe_url %}"');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.name\}\}/g, '{{ organization.name }}');
-    
-    // Add Klaviyo-specific attributes for tracking
-    klaviyoHtml = klaviyoHtml.replace(/<a\s+href="([^"]*)"([^>]*)>/g, '<a href="$1" data-kl-track-click="true"$2>');
-    
-    return klaviyoHtml;
-};
-
-export const handler = async (req, res, next) => {
-    const { code, format, type } = req.body;
-
-    if (!code || !format || !type) {
-        return res.status(400).json({
-            error: 'Missing required fields: code, format, and type are required'
-        });
-    }
-
-    try {
-        let htmlOutput = '';
-
-        if (type === 'mjml') {
-            // Validate MJML structure
-            if (!code.includes('<mjml>') || !code.includes('</mjml>')) {
-                return res.status(400).json({
-                    error: 'Invalid MJML: Code must be enclosed in <mjml> tags'
-                });
-            }
-
-            const result = mjml2html(code, {
-                validationLevel: 'soft',
-                minify: true
-            });
-
-            if (result.errors.length > 0) {
-                console.warn('MJML warnings:', result.errors);
-                return res.status(400).json({
-                    error: 'MJML validation errors',
-                    details: result.errors
-                });
-            }
-            htmlOutput = result.html;
-
-        } else if (type === 'react-email') {
-            // Transpile JSX code and convert ES modules to CommonJS
-            const transpiledCode = Babel.transform(code, {
-                presets: [
-                    'react',
-                    ['env', { modules: 'commonjs' }]
-                ],
-            }).code;
-
-            // Define a comprehensive module map for the sandbox
-            const moduleMap = {
-                'react': React,
-                '@react-email/components': ReactEmailComponents,
-                '@react-email/html': ReactEmailHtml,
-                '@react-email/head': ReactEmailHead,
-                '@react-email/body': ReactEmailBody,
-                '@react-email/button': ReactEmailButton,
-                '@react-email/container': ReactEmailContainer,
-                '@react-email/column': ReactEmailColumn,
-                '@react-email/row': ReactEmailRow,
-                '@react-email/section': ReactEmailSection,
-                '@react-email/text': ReactEmailText,
-                '@react-email/img': ReactEmailImg,
-                '@react-email/link': ReactEmailLink,
-                '@react-email/hr': ReactEmailHr,
-                '@react-email/preview': ReactEmailPreview,
-                // Add render function as well in case it's needed
-                '@react-email/render': { render }
-            };
-
-            // Initialize the module system
-            const moduleExports = {};
-            const moduleObject = { 
-                exports: moduleExports,
-                get default() {
-                    return this.exports.default;
-                }
-            };
-
-            // Use a VM to safely execute the transpiled code
-            const vm = new VM({
-                timeout: 5000,
-                sandbox: {
-                    React,
-                    exports: moduleExports,
-                    module: moduleObject,
-                    __esModule: true,
-                    require: (moduleName) => {
-                        if (moduleMap[moduleName]) {
-                            return moduleMap[moduleName];
-                        }
-                        throw new Error(`Module "${moduleName}" is not supported in the sandbox. Available modules: ${Object.keys(moduleMap).join(', ')}`);
-                    },
-                    console: {
-                        log: (...args) => console.log('[Sandbox]', ...args),
-                        error: (...args) => console.error('[Sandbox]', ...args),
-                        warn: (...args) => console.warn('[Sandbox]', ...args)
-                    }
-                }
-            });
-
-            // Execute the code in the sandbox
-            const script = new VMScript(transpiledCode);
-            vm.run(script);
-
-            // Get the default export - try multiple approaches
-            let EmailComponent = moduleExports.default || moduleObject.exports.default || moduleExports;
-
-            // Debug: log what we actually got
-            console.log('Module exports:', Object.keys(moduleExports));
-            console.log('Module exports default:', moduleExports.default);
-            console.log('Full moduleExports:', moduleExports);
-            console.log('Component type:', typeof EmailComponent);
-
-            // If the default export is an object, try to find a component within it
-            if (EmailComponent && typeof EmailComponent === 'object') {
-                console.log('Default export is object, keys:', Object.keys(EmailComponent));
-                
-                // Common patterns for React components in objects
-                const possibleComponentKeys = ['default', 'component', 'Component', 'Email', 'Template'];
-                
-                for (const key of possibleComponentKeys) {
-                    if (EmailComponent[key] && typeof EmailComponent[key] === 'function') {
-                        console.log(`Found component at key: ${key}`);
-                        EmailComponent = EmailComponent[key];
-                        break;
-                    }
-                }
-                
-                // If still an object, try the first function property
-                if (typeof EmailComponent === 'object') {
-                    const functionKeys = Object.keys(EmailComponent).filter(key => 
-                        typeof EmailComponent[key] === 'function'
-                    );
-                    
-                    if (functionKeys.length > 0) {
-                        console.log(`Using first function property: ${functionKeys[0]}`);
-                        EmailComponent = EmailComponent[functionKeys[0]];
-                    }
-                }
-            }
-
-            // If still no component, check if the entire exports object is the component
-            if (!EmailComponent && typeof moduleExports === 'function') {
-                EmailComponent = moduleExports;
-            }
-
-            // Final validation
-            if (!EmailComponent) {
-                throw new Error(`No default export found. Module exports: ${Object.keys(moduleExports).join(', ') || 'none'}. Make sure your component has 'export default ComponentName'`);
-            }
-
-            if (typeof EmailComponent !== 'function') {
-                const availableExports = Object.keys(moduleExports).map(key => 
-                    `${key}: ${typeof moduleExports[key]}`
-                ).join(', ');
-                
-                throw new Error(`Default export is not a function/component. Got: ${typeof EmailComponent}. Available exports: ${availableExports || 'none'}`);
-            }
-
-            // Try to create and validate the component
-            let componentElement;
-            try {
-                componentElement = React.createElement(EmailComponent);
-                if (!React.isValidElement(componentElement)) {
-                    throw new Error("Component does not return a valid React element");
-                }
-            } catch (componentError) {
-                throw new Error(`Component creation failed: ${componentError.message}`);
-            }
-
-            htmlOutput = await render(componentElement);
-
-        } else {
-            return res.status(400).json({
-                error: 'Invalid type. Must be "mjml" or "react-email"'
-            });
-        }
-
-        // Apply platform-specific formatting
-        if (format === 'hubspot') {
-            htmlOutput = addHubSpotFormatting(htmlOutput);
-        } else if (format === 'mailchimp') {
-            htmlOutput = addMailchimpFormatting(htmlOutput);
-        } else if (format === 'klaviyo') {
-            htmlOutput = addKlaviyoFormatting(htmlOutput);
-        } else {
-            return res.status(400).json({
-                error: 'Invalid format. Must be "hubspot", "mailchimp", or "klaviyo"'
-            });
-        }
-
-        res.status(200).json({ result: htmlOutput });
-
-    } catch (err) {
-        console.error('Conversion error:', err);
-        res.status(500).json({
-            error: `Conversion failed: ${err.message}`
-        });
-    }
-};
