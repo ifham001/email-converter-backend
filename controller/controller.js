@@ -344,6 +344,7 @@ export const handler = async (req, res, next) => {
             let transpiledCode;
             try {
                 const babelConfig = {
+                    filename: isTS ? 'component.tsx' : 'component.jsx', // Required for TypeScript preset
                     presets: babelPresets
                 };
 
