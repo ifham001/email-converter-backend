@@ -136,13 +136,19 @@ const addHubSpotFormatting = (html) => {
         ${bodyContent}
     </div>
     
-    <!-- HubSpot tracking and unsubscribe -->
+    <!-- HubSpot CAN-SPAM compliant footer -->
     <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
         <tr>
             <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">
-                {{company.name}}<br>
-                {{company.address}}<br>
-                <a href="{{ unsubscribe_link }}" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
+                <!-- Required CAN-SPAM compliance information -->
+                {{site_settings.company_name}}<br>
+                {{site_settings.company_street_address_1}}<br>
+                {{site_settings.company_city}}, {{site_settings.company_state}} {{site_settings.company_zip}}<br>
+                <br>
+                <!-- Required unsubscribe links - using both options for maximum compliance -->
+                {{unsubscribe_anchor}}<br>
+                <a href="{{unsubscribe_link}}" style="color: #666666; text-decoration: underline;">Unsubscribe from this list</a> | 
+                <a href="{{unsubscribe_link_all}}" style="color: #666666; text-decoration: underline;">Unsubscribe from all emails</a> | 
                 <a href="{{ subscription_preference_page_url }}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
             </td>
         </tr>
@@ -154,14 +160,23 @@ const addHubSpotFormatting = (html) => {
 </body>
 </html>`;
 
-    // Replace common patterns with HubSpot tokens
+    // Replace common patterns with HubSpot tokens - updated for CAN-SPAM compliance
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.email\}\}/g, '{{contact.email}}');
-    hubspotHtml = hubspotHtml.replace(/\{\{company\.name\}\}/g, '{{company.name}}');
-    hubspotHtml = hubspotHtml.replace(/\{\{company\.address\}\}/g, '{{company.address}}');
-    hubspotHtml = hubspotHtml.replace(/href="#unsubscribe"/g, 'href="{{ unsubscribe_link }}"');
+    hubspotHtml = hubspotHtml.replace(/\{\{company\.name\}\}/g, '{{site_settings.company_name}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{company\.address\}\}/g, '{{site_settings.company_street_address_1}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{company\.city\}\}/g, '{{site_settings.company_city}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{company\.state\}\}/g, '{{site_settings.company_state}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{company\.zip\}\}/g, '{{site_settings.company_zip}}');
+    hubspotHtml = hubspotHtml.replace(/href="#unsubscribe"/g, 'href="{{unsubscribe_link}}"');
+    hubspotHtml = hubspotHtml.replace(/href="#unsubscribe-all"/g, 'href="{{unsubscribe_link_all}}"');
     hubspotHtml = hubspotHtml.replace(/href="#manage-preferences"/g, 'href="{{ subscription_preference_page_url }}"');
+    
+    // Add additional HubSpot tokens that might be used in templates
+    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.company_phone\}\}/g, '{{site_settings.company_phone}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.company_fax\}\}/g, '{{site_settings.company_fax}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.company_website\}\}/g, '{{site_settings.company_website}}');
     
     return hubspotHtml;
 };
