@@ -51,6 +51,25 @@ import * as ReactIconsTi from 'react-icons/ti';
 import * as ReactIconsVsc from 'react-icons/vsc';
 import * as ReactIconsWi from 'react-icons/wi';
 
+// Function to detect if code is TypeScript
+const isTypeScript = (code) => {
+    // Common TypeScript patterns
+    const tsPatterns = [
+        /:\s*(string|number|boolean|object|any|void|undefined|null)\s*[,;=\)]/,
+        /interface\s+\w+/,
+        /type\s+\w+\s*=/,
+        /as\s+(const|string|number|boolean)/,
+        /<[A-Z]\w*>/,
+        /\?\s*:/,
+        /export\s+type/,
+        /export\s+interface/,
+        /:\s*\{[^}]*\}/,
+        /\w+\s*:\s*\w+\s*\[/,
+    ];
+    
+    return tsPatterns.some(pattern => pattern.test(code));
+};
+
 // Platform-specific formatting functions
 const addHubSpotFormatting = (html) => {
     // HubSpot-specific modifications
@@ -88,6 +107,7 @@ const addHubSpotFormatting = (html) => {
     
     // Replace common patterns with HubSpot tokens
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
     hubspotHtml = hubspotHtml.replace(/\{\{company\.name\}\}/g, '{{company.name}}');
     hubspotHtml = hubspotHtml.replace(/href="http/g, 'href="{{site_settings.company_domain}}/');
     
@@ -303,13 +323,41 @@ export const handler = async (req, res, next) => {
             htmlOutput = result.html;
 
         } else if (type === 'react-email') {
-            // Transpile JSX code and convert ES modules to CommonJS
-            const transpiledCode = Babel.transform(code, {
-                presets: [
-                    'react',
-                    ['env', { modules: 'commonjs' }]
-                ],
-            }).code;
+            // Check if the code is TypeScript
+            const isTS = isTypeScript(code);
+            
+            // Configure Babel presets based on detected language
+            const babelPresets = [
+                'react',
+                ['env', { modules: 'commonjs' }]
+            ];
+            
+            if (isTS) {
+                babelPresets.push(['typescript', { 
+                    allowDeclareFields: true,
+                    allowNamespaces: true,
+                    onlyRemoveTypeImports: true
+                }]);
+            }
+
+            // Transpile JSX/TSX code and convert ES modules to CommonJS
+            let transpiledCode;
+            try {
+                transpiledCode = Babel.transform(code, {
+                    presets: babelPresets,
+                    plugins: [
+                        // Additional plugins to handle TypeScript features
+                        '@babel/plugin-proposal-class-properties',
+                        '@babel/plugin-proposal-object-rest-spread',
+                        '@babel/plugin-transform-runtime'
+                    ].filter(Boolean) // Remove any undefined plugins
+                }).code;
+            } catch (babelError) {
+                console.error('Babel transformation error:', babelError);
+                return res.status(400).json({
+                    error: `Code transformation failed: ${babelError.message}. Make sure your ${isTS ? 'TypeScript' : 'JavaScript'} syntax is valid.`
+                });
+            }
 
             // Define a comprehensive module map for the sandbox
             const moduleMap = {
@@ -375,7 +423,7 @@ export const handler = async (req, res, next) => {
 
             // Use a VM to safely execute the transpiled code
             const vm = new VM({
-                timeout: 5000,
+                timeout: 10000, // Increased timeout for complex templates
                 sandbox: {
                     React,
                     exports: moduleExports,
@@ -396,8 +444,15 @@ export const handler = async (req, res, next) => {
             });
 
             // Execute the code in the sandbox
-            const script = new VMScript(transpiledCode);
-            vm.run(script);
+            try {
+                const script = new VMScript(transpiledCode);
+                vm.run(script);
+            } catch (vmError) {
+                console.error('VM execution error:', vmError);
+                return res.status(500).json({
+                    error: `Code execution failed: ${vmError.message}`
+                });
+            }
 
             // Get the default export - try multiple approaches
             let EmailComponent = moduleExports.default || moduleObject.exports.default || moduleExports;
@@ -405,7 +460,6 @@ export const handler = async (req, res, next) => {
             // Debug: log what we actually got
             console.log('Module exports:', Object.keys(moduleExports));
             console.log('Module exports default:', moduleExports.default);
-            console.log('Full moduleExports:', moduleExports);
             console.log('Component type:', typeof EmailComponent);
 
             // If the default export is an object, try to find a component within it
@@ -465,7 +519,13 @@ export const handler = async (req, res, next) => {
                 throw new Error(`Component creation failed: ${componentError.message}`);
             }
 
-            htmlOutput = await render(componentElement);
+            // Render the component to HTML
+            try {
+                htmlOutput = await render(componentElement);
+            } catch (renderError) {
+                console.error('Render error:', renderError);
+                throw new Error(`Email rendering failed: ${renderError.message}`);
+            }
 
         } else {
             return res.status(400).json({
