@@ -75,7 +75,11 @@ const addHubSpotFormatting = (html) => {
     // HubSpot-specific modifications
     let hubspotHtml = html;
     
-    // Add HubSpot module wrapper
+    // Add required HubSpot header and footer includes
+    const hubspotHeader = `{{ standard_header_includes }}`;
+    const hubspotFooter = `{{ standard_footer_includes }}`;
+    
+    // Add HubSpot module wrapper with required includes
     hubspotHtml = `<!-- HubSpot Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -86,6 +90,7 @@ const addHubSpotFormatting = (html) => {
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <!--<![endif]-->
     <title>{{content.html_title}}</title>
+    ${hubspotHeader}
     <style type="text/css">
         /* HubSpot specific styles */
         .hs_cos_wrapper_type_module { width: 100% !important; }
@@ -101,15 +106,20 @@ const addHubSpotFormatting = (html) => {
         ${hubspotHtml}
     </div>
     <!-- HubSpot tracking -->
-    <img src="{{site_settings.email_tracking_pixel}}" width="1" height="1" style="display:none;" />
+    <img src="{{brand_settings.logo.link}}" width="1" height="1" style="display:none;" />
+    ${hubspotFooter}
 </body>
 </html>`;
+    
+    // Replace deprecated tokens with current ones
+    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.company_domain\}\}/g, '{{brand_settings.logo.link}}');
+    hubspotHtml = hubspotHtml.replace(/href="http/g, 'href="{{brand_settings.logo.link}}/');
+    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.email_tracking_pixel\}\}/g, '{{brand_settings.logo.link}}');
     
     // Replace common patterns with HubSpot tokens
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
     hubspotHtml = hubspotHtml.replace(/\{\{company\.name\}\}/g, '{{company.name}}');
-    hubspotHtml = hubspotHtml.replace(/href="http/g, 'href="{{site_settings.company_domain}}/');
     
     return hubspotHtml;
 };
