@@ -343,15 +343,20 @@ export const handler = async (req, res, next) => {
             // Transpile JSX/TSX code and convert ES modules to CommonJS
             let transpiledCode;
             try {
-                transpiledCode = Babel.transform(code, {
-                    presets: babelPresets,
-                    plugins: [
-                        // Additional plugins to handle TypeScript features
-                        '@babel/plugin-proposal-class-properties',
-                        '@babel/plugin-proposal-object-rest-spread',
-                        '@babel/plugin-transform-runtime'
-                    ].filter(Boolean) // Remove any undefined plugins
-                }).code;
+                const babelConfig = {
+                    presets: babelPresets
+                };
+
+                // Only add plugins that are available in @babel/standalone
+                if (isTS) {
+                    // For TypeScript, we rely mainly on the typescript preset
+                    babelConfig.plugins = [];
+                } else {
+                    // For regular JavaScript, we can use some basic plugins
+                    babelConfig.plugins = [];
+                }
+
+                transpiledCode = Babel.transform(code, babelConfig).code;
             } catch (babelError) {
                 console.error('Babel transformation error:', babelError);
                 return res.status(400).json({
