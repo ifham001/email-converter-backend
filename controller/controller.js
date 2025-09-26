@@ -53,7 +53,6 @@ import * as ReactIconsWi from 'react-icons/wi';
 
 // Function to detect if code is TypeScript
 const isTypeScript = (code) => {
-    // Common TypeScript patterns
     const tsPatterns = [
         /:\s*(string|number|boolean|object|any|void|undefined|null)\s*[,;=\)]/,
         /interface\s+\w+/,
@@ -70,17 +69,32 @@ const isTypeScript = (code) => {
     return tsPatterns.some(pattern => pattern.test(code));
 };
 
+// Helper function to extract head content
+const extractHeadContent = (html) => {
+    const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+    return headMatch ? headMatch[1] : '';
+};
+
+// Helper function to extract body content
+const extractBodyContent = (html) => {
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    return bodyMatch ? bodyMatch[1] : html;
+};
+
+// Helper function to extract body attributes
+const extractBodyAttributes = (html) => {
+    const bodyMatch = html.match(/<body([^>]*)>/i);
+    return bodyMatch ? bodyMatch[1] : '';
+};
+
 // Platform-specific formatting functions
 const addHubSpotFormatting = (html) => {
-    // HubSpot-specific modifications
-    let hubspotHtml = html;
+    const headContent = extractHeadContent(html);
+    const bodyContent = extractBodyContent(html);
+    const bodyAttributes = extractBodyAttributes(html);
     
-    // Add required HubSpot header and footer includes
-    const hubspotHeader = `{{ standard_header_includes }}`;
-    const hubspotFooter = `{{ standard_footer_includes }}`;
-    
-    // Add HubSpot module wrapper with required includes
-    hubspotHtml = `<!-- HubSpot Email Template -->
+    // HubSpot-specific modifications with proper token usage
+    let hubspotHtml = `<!-- HubSpot Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -90,108 +104,173 @@ const addHubSpotFormatting = (html) => {
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <!--<![endif]-->
     <title>{{content.html_title}}</title>
-    ${hubspotHeader}
+    {{ standard_header_includes }}
+    
+    ${headContent}
+    
     <style type="text/css">
         /* HubSpot specific styles */
         .hs_cos_wrapper_type_module { width: 100% !important; }
         .hs_cos_wrapper { display: block !important; }
+        .hs_cos_wrapper_type_header,
+        .hs_cos_wrapper_type_footer { width: 100% !important; }
+        
+        /* Mobile responsive */
         @media only screen and (max-width: 480px) {
             .mobile-hide { display: none !important; }
             .mobile-center { text-align: center !important; }
+            .mobile-stack { display: block !important; width: 100% !important; }
+            .hs_cos_wrapper_type_module table { width: 100% !important; }
+        }
+        
+        /* Outlook fixes */
+        .ExternalClass { width: 100%; }
+        .ExternalClass, .ExternalClass p, .ExternalClass span, 
+        .ExternalClass font, .ExternalClass td, .ExternalClass div { 
+            line-height: 100%; 
         }
     </style>
 </head>
-<body>
+<body${bodyAttributes}>
     <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">
-        ${hubspotHtml}
+        ${bodyContent}
     </div>
-    <!-- HubSpot tracking -->
-    <img src="{{brand_settings.logo.link}}" width="1" height="1" style="display:none;" />
-    ${hubspotFooter}
+    
+    <!-- HubSpot tracking and unsubscribe -->
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">
+                {{company.name}}<br>
+                {{company.address}}<br>
+                <a href="{{ unsubscribe_link }}" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
+                <a href="{{ subscription_preference_page_url }}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
+            </td>
+        </tr>
+    </table>
+    
+    <!-- HubSpot tracking pixel -->
+    {{ email_tracking_pixel }}
+    {{ standard_footer_includes }}
 </body>
 </html>`;
-    
-    // Replace deprecated tokens with current ones
-    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.company_domain\}\}/g, '{{brand_settings.logo.link}}');
-    hubspotHtml = hubspotHtml.replace(/href="http/g, 'href="{{brand_settings.logo.link}}/');
-    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.email_tracking_pixel\}\}/g, '{{brand_settings.logo.link}}');
-    
+
     // Replace common patterns with HubSpot tokens
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{contact\.email\}\}/g, '{{contact.email}}');
     hubspotHtml = hubspotHtml.replace(/\{\{company\.name\}\}/g, '{{company.name}}');
+    hubspotHtml = hubspotHtml.replace(/\{\{company\.address\}\}/g, '{{company.address}}');
+    hubspotHtml = hubspotHtml.replace(/href="#unsubscribe"/g, 'href="{{ unsubscribe_link }}"');
+    hubspotHtml = hubspotHtml.replace(/href="#manage-preferences"/g, 'href="{{ subscription_preference_page_url }}"');
     
     return hubspotHtml;
 };
 
 const addMailchimpFormatting = (html) => {
-    // Mailchimp-specific modifications
-    let mailchimpHtml = html;
+    const headContent = extractHeadContent(html);
+    const bodyContent = extractBodyContent(html);
+    const bodyAttributes = extractBodyAttributes(html);
     
-    // Add Mailchimp template structure
-    mailchimpHtml = `<!-- Mailchimp Email Template -->
+    let mailchimpHtml = `<!-- Mailchimp Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="format-detection" content="telephone=no"/>
+    <meta name="color-scheme" content="light dark"/>
+    <meta name="supported-color-schemes" content="light dark"/>
     <title>*|MC:SUBJECT|*</title>
+    
+    ${headContent}
+    
     <style type="text/css">
-        /* Mailchimp specific styles */
-        p { margin: 10px 0; padding: 0; }
-        table { border-collapse: collapse; }
-        h1,h2,h3,h4,h5,h6 { display: block; margin: 0; padding: 0; }
-        img,a img { border: 0; height: auto; outline: none; text-decoration: none; }
-        body,#bodyTable,#bodyCell { height: 100%; margin: 0; padding: 0; width: 100%; }
-        .mcnPreviewText { display: none !important; }
+        /* Reset styles */
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 100% !important;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333333;
+            background-color: #ffffff;
+        }
         
+        /* Mailchimp specific */
+        #bodyTable, #bodyCell { height: 100%; margin: 0; padding: 0; width: 100%; }
+        .mcnPreviewText { display: none !important; }
+        .mcnImage { width: 100% !important; }
+        
+        /* Responsive styles */
         @media only screen and (min-width: 768px) {
             .templateContainer { width: 600px !important; }
         }
         
         @media only screen and (max-width: 480px) {
-            body,table,td,p,a,li,blockquote { -webkit-text-size-adjust: none !important; }
+            body, table, td, p, a, li, blockquote { -webkit-text-size-adjust: none !important; }
             body { width: 100% !important; min-width: 100% !important; }
-            .mcnRetinaImage { max-width: 100% !important; }
-            .mcnImage { width: 100% !important; }
-            .mcnCartContainer,.mcnCaptionTopContent,.mcnRecContentContainer,.mcnCaptionBottomContent,.mcnTextContentContainer,.mcnBoxedTextContentContainer,.mcnImageGroupContentContainer,.mcnCaptionLeftTextContentContainer,.mcnCaptionRightTextContentContainer,.mcnCaptionLeftImageContentContainer,.mcnCaptionRightImageContentContainer,.mcnImageCardLeftTextContentContainer,.mcnImageCardRightTextContentContainer,.mcnImageCardLeftImageContentContainer,.mcnImageCardRightImageContentContainer { max-width: 100% !important; width: 100% !important; }
-            .mcnBoxedTextContentContainer { min-width: 100% !important; }
-            .mcnImageGroupContent { padding: 9px !important; }
-            .mcnTextContent,.mcnBoxedTextContentContainer { padding-right: 18px !important; padding-left: 18px !important; }
-            .mcnImageCardTopImageContent,.mcnCaptionBottomContent:last-child .mcnCaptionBottomImageContent,.mcnCaptionBlockInner .mcnCaptionTopContent:last-child .mcnTextContent { padding-top: 18px !important; }
-            .mcnImageCardBottomImageContent { padding-bottom: 9px !important; }
-            .mcnImageGroupBlockInner { padding-top: 0 !important; padding-bottom: 0 !important; }
-            .mcnImageGroupBlockOuter { padding-top: 9px !important; padding-bottom: 9px !important; }
-            .mcnTextContent,.mcnBoxedTextContentContainer,.mcnImageCardLeftTextContent,.mcnImageCardRightTextContent { padding-top: 9px !important; padding-bottom: 9px !important; }
-            .mcnImageCardLeftImageContent,.mcnImageCardRightImageContent { padding-right: 18px !important; padding-bottom: 0 !important; padding-left: 18px !important; }
-            .mcPreviewText { display: none !important; }
-            .mcnImage { vertical-align: bottom !important; }
+            
+            .mcnTextContent, .mcnBoxedTextContentContainer { 
+                padding-right: 18px !important; 
+                padding-left: 18px !important; 
+            }
+            
+            .mcnImageCardTopImageContent, .mcnCaptionBottomContent:last-child .mcnCaptionBottomImageContent,
+            .mcnCaptionBlockInner .mcnCaptionTopContent:last-child .mcnTextContent { 
+                padding-top: 18px !important; 
+            }
+            
             .mcnTextContent { word-break: break-word; }
-            .mcnTextContent img { height: auto !important; }
-            .mcnDividerBlock { table-layout: fixed !important; }
+            
             h1 { font-size: 22px !important; line-height: 125% !important; }
             h2 { font-size: 20px !important; line-height: 125% !important; }
             h3 { font-size: 18px !important; line-height: 125% !important; }
             h4 { font-size: 16px !important; line-height: 150% !important; }
-            .mcnBoxedTextContentContainer .mcnTextContent,.mcnBoxedTextContentContainer .mcnTextContent p { font-size: 14px !important; line-height: 150% !important; }
-            .headerContainer .mcnTextContent,.headerContainer .mcnTextContent p { font-size: 16px !important; line-height: 150% !important; }
-            .bodyContainer .mcnTextContent,.bodyContainer .mcnTextContent p { font-size: 16px !important; line-height: 150% !important; }
-            .footerContainer .mcnTextContent,.footerContainer .mcnTextContent p { font-size: 14px !important; line-height: 150% !important; }
+            
+            .mcnTextContent, .mcnBoxedTextContentContainer .mcnTextContent p { 
+                font-size: 14px !important; 
+                line-height: 150% !important; 
+            }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #1a1a1a !important; color: #ffffff !important; }
+            .mcnTextContent, .mcnTextContent p { color: #ffffff !important; }
+            a { color: #4da8ff !important; }
         }
     </style>
 </head>
-<body>
+<body${bodyAttributes} style="background-color: #ffffff;">
+    <!-- Preheader -->
     <span class="mcnPreviewText" style="display:none; font-size:0px; line-height:0px; max-height:0px; max-width:0px; opacity:0; overflow:hidden; visibility:hidden; mso-hide:all;">*|MC:PREVIEW_TEXT|*</span>
     
     <center>
-        <table align="center" border="0" cellpadding="0" cellspacing="0" height="100%" width="100%" id="bodyTable">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" height="100%" width="100%" id="bodyTable" style="background-color: #f4f4f4;">
             <tr>
-                <td align="center" valign="top" id="bodyCell">
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="templateContainer">
+                <td align="center" valign="top" id="bodyCell" style="padding: 20px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="templateContainer" style="max-width: 600px;">
                         <tr>
                             <td valign="top" id="templateBody">
-                                ${mailchimpHtml}
+                                ${bodyContent}
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td valign="top" id="templateFooter">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" class="mcnTextContentContainer">
+                                    <tr>
+                                        <td class="mcnTextContent" style="padding: 20px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666; text-align: center;">
+                                            *|LIST:COMPANY|*<br>
+                                            *|LIST:ADDRESSLINE|*<br>
+                                            <a href="*|UNSUB|*" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
+                                            <a href="*|UPDATE_PROFILE|*" style="color: #666666; text-decoration: underline;">Update Preferences</a> |
+                                            <a href="*|ARCHIVE|*" style="color: #666666; text-decoration: underline;">View in Browser</a>
+                                        </td>
+                                    </tr>
+                                </table>
                             </td>
                         </tr>
                     </table>
@@ -200,28 +279,33 @@ const addMailchimpFormatting = (html) => {
         </table>
     </center>
     
-    <!-- Mailchimp merge tags -->
+    <!-- Mailchimp required merge tags -->
     <div style="display: none;">
-        *|UNSUB|* *|UPDATE_PROFILE|* *|LIST:ADDRESSLINE|* *|REWARDS|*
+        *|UNSUB|* *|UPDATE_PROFILE|* *|LIST:ADDRESSLINE|* *|REWARDS|* *|ARCHIVE|*
     </div>
 </body>
 </html>`;
-    
+
     // Replace common patterns with Mailchimp merge tags
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.first_name\}\}/g, '*|FNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.last_name\}\}/g, '*|LNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.email\}\}/g, '*|EMAIL|*');
+    mailchimpHtml = mailchimpHtml.replace(/\{\{company\.name\}\}/g, '*|LIST:COMPANY|*');
+    mailchimpHtml = mailchimpHtml.replace(/\{\{company\.address\}\}/g, '*|LIST:ADDRESSLINE|*');
+    mailchimpHtml = mailchimpHtml.replace(/\{\{subject\}\}/g, '*|MC:SUBJECT|*');
     mailchimpHtml = mailchimpHtml.replace(/href="#unsubscribe"/g, 'href="*|UNSUB|*"');
+    mailchimpHtml = mailchimpHtml.replace(/href="#manage-preferences"/g, 'href="*|UPDATE_PROFILE|*"');
+    mailchimpHtml = mailchimpHtml.replace(/href="#view-online"/g, 'href="*|ARCHIVE|*"');
     
     return mailchimpHtml;
 };
 
 const addKlaviyoFormatting = (html) => {
-    // Klaviyo-specific modifications
-    let klaviyoHtml = html;
+    const headContent = extractHeadContent(html);
+    const bodyContent = extractBodyContent(html);
+    const bodyAttributes = extractBodyAttributes(html);
     
-    // Add Klaviyo template structure
-    klaviyoHtml = `<!-- Klaviyo Email Template -->
+    let klaviyoHtml = `<!-- Klaviyo Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -233,21 +317,50 @@ const addKlaviyoFormatting = (html) => {
     <meta name="format-detection" content="email=no"/>
     <meta name="color-scheme" content="light dark"/>
     <meta name="supported-color-schemes" content="light dark"/>
-    <title>{% if event.subject %}{{ event.subject }}{% endif %}</title>
+    <title>{% if event.subject %}{{ event.subject }}{% else %}{{ organization.name|default:"Email Update" }}{% endif %}</title>
+    
+    ${headContent}
+    
     <style type="text/css">
-        /* Klaviyo specific styles */
+        /* Reset styles */
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 100% !important;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333333;
+        }
+        
         .ReadMsgBody { width: 100%; }
         .ExternalClass { width: 100%; }
-        .ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div { line-height: 100%; }
-        body, table, td, p, a, li, blockquote { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-        img { -ms-interpolation-mode: bicubic; }
+        .ExternalClass, .ExternalClass p, .ExternalClass span, 
+        .ExternalClass font, .ExternalClass td, .ExternalClass div { 
+            line-height: 100%; 
+        }
         
-        /* Klaviyo responsive styles */
+        table, td { 
+            mso-table-lspace: 0pt; 
+            mso-table-rspace: 0pt; 
+            border-collapse: collapse; 
+        }
+        
+        img { 
+            -ms-interpolation-mode: bicubic; 
+            border: 0; 
+            outline: none; 
+            display: block; 
+        }
+        
+        /* Responsive styles */
         @media only screen and (max-width: 480px) {
             .kl-mobile-hide { display: none !important; }
             .kl-mobile-center { text-align: center !important; }
-            .kl-mobile-stack { display: block !important; width: 100% !important; }
+            .kl-mobile-stack { 
+                display: block !important; 
+                width: 100% !important; 
+            }
             .kl-mobile-full-width { width: 100% !important; }
         }
         
@@ -263,37 +376,63 @@ const addKlaviyoFormatting = (html) => {
         .kl-column { display: inline-block; vertical-align: top; }
     </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
-    <div class="kl-container">
-        ${klaviyoHtml}
+<body${bodyAttributes} style="margin: 0; padding: 0; background-color: #f4f4f4;">
+    <!-- Preheader (hidden preview text) -->
+    <div style="display: none; max-height: 0; overflow: hidden;">
+        {% if event.preview_text %}{{ event.preview_text }}{% else %}{{ organization.name|default:"" }} - Latest Updates{% endif %}
     </div>
     
-    <!-- Klaviyo tracking pixel -->
-    {% track_opened %}
-    
-    <!-- Klaviyo unsubscribe footer -->
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+    <!-- Wrapper table for better Outlook compatibility -->
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
         <tr>
-            <td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">
-                {% if organization.name %}{{ organization.name }}{% endif %}<br>
-                {% if organization.address %}{{ organization.address }}{% endif %}<br>
-                <a href="{% unsubscribe_url %}" style="color: #666666;">Unsubscribe</a> | 
-                <a href="{% manage_preferences_url %}" style="color: #666666;">Manage Preferences</a>
+            <td align="center">
+                <table role="presentation" class="kl-container" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td style="padding: 20px;">
+                            ${bodyContent}
+                        </td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>
+    
+    <!-- Klaviyo footer -->
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">
+                {{ organization.name|default:"Your Company Name" }}<br>
+                {% if organization.address %}{{ organization.address }}{% endif %}<br>
+                <a href="{% unsubscribe_url %}" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
+                <a href="{% manage_preferences_url %}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
+                {% if organization.city and organization.state %}
+                <br>{{ organization.city }}, {{ organization.state }}
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+    
+    <!-- Klaviyo tracking pixel -->
+    {% track_opened %}
 </body>
 </html>`;
-    
+
     // Replace common patterns with Klaviyo template variables
-    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"there" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"" }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.email\}\}/g, '{{ person.email }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.name\}\}/g, '{{ organization.name|default:"Your Company" }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.address\}\}/g, '{{ organization.address|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/href="#unsubscribe"/g, 'href="{% unsubscribe_url %}"');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.name\}\}/g, '{{ organization.name }}');
+    klaviyoHtml = klaviyoHtml.replace(/href="#manage-preferences"/g, 'href="{% manage_preferences_url %}"');
     
-    // Add Klaviyo-specific attributes for tracking
-    klaviyoHtml = klaviyoHtml.replace(/<a\s+href="([^"]*)"([^>]*)>/g, '<a href="$1" data-kl-track-click="true"$2>');
+    // Add Klaviyo-specific click tracking to links (more precise regex)
+    klaviyoHtml = klaviyoHtml.replace(/<a\s+(?!.*data-kl-track-click)([^>]*href="[^"]*"[^>]*)>/gi, '<a $1 data-kl-track-click="true">');
+    
+    // Replace product/event variables if they exist
+    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.name\}\}/g, '{{ event.product_name|default:"" }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.price\}\}/g, '{{ event.product_price|default:"" }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.image\}\}/g, '{{ event.product_image_url|default:"" }}');
     
     return klaviyoHtml;
 };
@@ -354,16 +493,13 @@ export const handler = async (req, res, next) => {
             let transpiledCode;
             try {
                 const babelConfig = {
-                    filename: isTS ? 'component.tsx' : 'component.jsx', // Required for TypeScript preset
+                    filename: isTS ? 'component.tsx' : 'component.jsx',
                     presets: babelPresets
                 };
 
-                // Only add plugins that are available in @babel/standalone
                 if (isTS) {
-                    // For TypeScript, we rely mainly on the typescript preset
                     babelConfig.plugins = [];
                 } else {
-                    // For regular JavaScript, we can use some basic plugins
                     babelConfig.plugins = [];
                 }
 
@@ -439,7 +575,7 @@ export const handler = async (req, res, next) => {
 
             // Use a VM to safely execute the transpiled code
             const vm = new VM({
-                timeout: 10000, // Increased timeout for complex templates
+                timeout: 10000,
                 sandbox: {
                     React,
                     exports: moduleExports,
