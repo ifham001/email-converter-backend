@@ -145,7 +145,7 @@ const detectIconFromSvgPath = (svgContent) => {
     return null;
 };
 
-// FIXED: Enhanced icon name generation with better detection
+// FIXED: Enhanced icon name generation with SHORTER names to avoid truncation
 const generateIconName = (svgContent, className, fullMatch, href) => {
     // Debug logging to understand what we're working with
     console.log('Icon detection debug:', {
@@ -155,37 +155,38 @@ const generateIconName = (svgContent, className, fullMatch, href) => {
         svgContentLength: svgContent ? svgContent.length : 0
     });
     
-    // Priority 1: Check href for social media domains
+    // Priority 1: Check href for social media domains - USE SHORT NAMES
     if (href) {
         const hrefLower = href.toLowerCase();
-        if (hrefLower.includes('instagram.com')) return 'fa-instagram';
-        if (hrefLower.includes('linkedin.com')) return 'fa-linkedin';
-        if (hrefLower.includes('twitter.com') || hrefLower.includes('x.com')) return 'fa-x-twitter';
-        if (hrefLower.includes('facebook.com')) return 'fa-facebook';
+        if (hrefLower.includes('instagram.com')) return 'instagram';
+        if (hrefLower.includes('linkedin.com')) return 'linkedin';
+        if (hrefLower.includes('twitter.com') || hrefLower.includes('x.com')) return 'twitter';
+        if (hrefLower.includes('facebook.com')) return 'facebook';
     }
     
     // Priority 2: Try to detect from SVG path content
     const detectedIcon = detectIconFromSvgPath(svgContent);
     if (detectedIcon) {
-        return detectedIcon;
+        // Remove 'fa-' prefix to avoid truncation
+        return detectedIcon.replace('fa-', '');
     }
     
     // Priority 3: Check the full match for any identifying information
     if (fullMatch) {
         const fullMatchLower = fullMatch.toLowerCase();
-        if (fullMatchLower.includes('instagram')) return 'fa-instagram';
-        if (fullMatchLower.includes('linkedin')) return 'fa-linkedin';
-        if (fullMatchLower.includes('twitter') || fullMatchLower.includes('x.com')) return 'fa-x-twitter';
-        if (fullMatchLower.includes('facebook')) return 'fa-facebook';
+        if (fullMatchLower.includes('instagram')) return 'instagram';
+        if (fullMatchLower.includes('linkedin')) return 'linkedin';
+        if (fullMatchLower.includes('twitter') || fullMatchLower.includes('x.com')) return 'twitter';
+        if (fullMatchLower.includes('facebook')) return 'facebook';
     }
     
     // Priority 4: Try to get from className
     if (className) {
         const classLower = className.toLowerCase();
-        if (classLower.includes('instagram')) return 'fa-instagram';
-        if (classLower.includes('linkedin')) return 'fa-linkedin';
-        if (classLower.includes('twitter')) return 'fa-x-twitter';
-        if (classLower.includes('facebook')) return 'fa-facebook';
+        if (classLower.includes('instagram')) return 'instagram';
+        if (classLower.includes('linkedin')) return 'linkedin';
+        if (classLower.includes('twitter')) return 'twitter';
+        if (classLower.includes('facebook')) return 'facebook';
     }
     
     // Priority 5: Try to extract from viewBox or other attributes
@@ -193,8 +194,8 @@ const generateIconName = (svgContent, className, fullMatch, href) => {
     if (viewBoxMatch) {
         const [_, width, height] = viewBoxMatch;
         // Font Awesome 6 icons often have specific viewBox dimensions
-        if (width === '448' && height === '512') return 'fa-instagram'; // Instagram typical viewBox
-        if (width === '512' && height === '512') return 'fa-facebook';  // Facebook typical viewBox
+        if (width === '448' && height === '512') return 'instagram';
+        if (width === '512' && height === '512') return 'facebook';
     }
     
     // Last resort: Generate a more readable fallback name
@@ -204,18 +205,18 @@ const generateIconName = (svgContent, className, fullMatch, href) => {
             // Try to create a more meaningful hash from the path
             const pathStart = pathMatch[1].slice(0, 30);
             // Check for specific path starts that are unique to certain icons
-            if (pathStart.includes('M224')) return 'fa-instagram';
-            if (pathStart.includes('M416')) return 'fa-linkedin';
-            if (pathStart.includes('M389')) return 'fa-x-twitter';
-            if (pathStart.includes('M512') || pathStart.includes('M504')) return 'fa-facebook';
+            if (pathStart.includes('M224')) return 'instagram';
+            if (pathStart.includes('M416')) return 'linkedin';
+            if (pathStart.includes('M389')) return 'twitter';
+            if (pathStart.includes('M512') || pathStart.includes('M504')) return 'facebook';
             
-            // Otherwise create a hash
-            const pathHash = pathMatch[1].slice(0, 10).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-            return `icon-${pathHash}`;
+            // Otherwise create a short hash
+            const pathHash = pathMatch[1].slice(0, 6).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            return `i${pathHash}`;
         }
     }
     
-    return 'icon-default';
+    return 'icon';
 };
 
 // FIXED: Enhanced SVG to image conversion with proper size handling
