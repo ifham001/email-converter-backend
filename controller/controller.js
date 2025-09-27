@@ -84,38 +84,43 @@ const extractBodyAttributes = (html) => {
     return bodyMatch ? bodyMatch[1] : '';
 };
 
-// Improved SVG to Image conversion functions
-const generateIconName = (svgContent, className, elementContent) => {
-    // Try to extract React Icon name from the element content or class
-    if (elementContent) {
-        // Look for React Icon component names in the content
-        const reactIconMatch = elementContent.match(/Fa([A-Z][a-zA-Z]*)/);
+// Enhanced icon name generation with React component detection
+const generateIconName = (svgContent, className, fullMatch) => {
+    // First priority: Extract React Icon component names from the full match
+    if (fullMatch) {
+        // Look for React Icon patterns like <FaInstagram>, <FaLinkedin>, etc.
+        const reactIconMatch = fullMatch.match(/<(Fa|Ai|Bi|Bs|Cg|Ci|Di|Fc|Fi|Gi|Go|Gr|Hi|Im|Io|Lia|Lu|Md|Pi|Ri|Rx|Si|Sl|Tb|Tfi|Ti|Vsc|Wi)([A-Z][a-zA-Z0-9]*)/);
         if (reactIconMatch) {
-            return `fa-${reactIconMatch[1].toLowerCase()}`;
+            const prefix = reactIconMatch[1].toLowerCase();
+            const iconName = reactIconMatch[2].toLowerCase();
+            return `${prefix}-${iconName}`;
         }
         
-        // Look for other icon library patterns
-        const iconLibMatch = elementContent.match(/([A-Z][a-z])([A-Z][a-zA-Z]*)/);
-        if (iconLibMatch) {
-            return `${iconLibMatch[1].toLowerCase()}-${iconLibMatch[2].toLowerCase()}`;
+        // Look for more general icon patterns
+        const generalIconMatch = fullMatch.match(/([A-Z][a-z])([A-Z][a-zA-Z0-9]*)/);
+        if (generalIconMatch) {
+            return `${generalIconMatch[1].toLowerCase()}-${generalIconMatch[2].toLowerCase()}`;
         }
     }
     
+    // Second priority: Use className if available
     if (className) {
         return className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
     }
     
-    // Try to extract icon name from SVG content or path
-    const pathMatch = svgContent.match(/d="([^"]*)/);
-    if (pathMatch) {
-        // Create a simple hash from the path for consistent naming
-        const pathHash = pathMatch[1].slice(0, 20).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        return `icon-${pathHash}`;
+    // Third priority: Generate from SVG path
+    if (svgContent) {
+        const pathMatch = svgContent.match(/d="([^"]*)/);
+        if (pathMatch) {
+            const pathHash = pathMatch[1].slice(0, 20).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            return `icon-${pathHash}`;
+        }
     }
     
     return 'default-icon';
 };
 
+// Enhanced SVG to image conversion with better size detection
 const convertSvgToImg = (html) => {
     // Convert standalone SVG elements
     html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes, content) => {
@@ -129,9 +134,8 @@ const convertSvgToImg = (html) => {
         const height = heightMatch ? heightMatch[1] : '24';
         const style = styleMatch ? styleMatch[1] : '';
         
-        const iconName = generateIconName(content, className);
+        const iconName = generateIconName(content, className, match);
         
-        // Build image style
         let imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
         if (style) {
             imgStyle += ' ' + style;
@@ -143,8 +147,9 @@ const convertSvgToImg = (html) => {
     return html;
 };
 
+// Enhanced React Icons to image links conversion with proper size extraction
 const convertReactIconsToImgLinks = (html) => {
-    // Convert SVG icons wrapped in anchor tags
+    // Convert SVG icons wrapped in anchor tags with enhanced detection
     html = html.replace(/<a([^>]*)>([\s\S]*?)<svg([^>]*)>([\s\S]*?)<\/svg>([\s\S]*?)<\/a>/gi, (match, linkAttribs, beforeSvg, svgAttribs, svgContent, afterSvg) => {
         const hrefMatch = linkAttribs.match(/href=["']([^"']*)["']/);
         const linkClassMatch = linkAttribs.match(/class=["']([^"']*)["']/);
@@ -160,21 +165,15 @@ const convertReactIconsToImgLinks = (html) => {
         let height = heightMatch ? heightMatch[1] : '24';
         const linkStyle = styleMatch ? styleMatch[1] : 'text-decoration: none;';
         
-        // Extract size from React Icon patterns in the original content
+        // Enhanced size extraction from React Icon patterns
         const sizeMatch = match.match(/size=\{(\d+)\}/);
         if (sizeMatch) {
             width = sizeMatch[1];
             height = sizeMatch[1];
         }
         
-        // Try to extract icon name from the original React component
-        let iconName;
-        const reactIconMatch = match.match(/<Fa([A-Z][a-zA-Z]*)/);
-        if (reactIconMatch) {
-            iconName = `fa-${reactIconMatch[1].toLowerCase()}`;
-        } else {
-            iconName = generateIconName(svgContent, svgClass || linkClass, match);
-        }
+        // Generate proper icon name with enhanced detection
+        const iconName = generateIconName(svgContent, svgClass || linkClass, match);
         
         const imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
         
@@ -185,10 +184,25 @@ const convertReactIconsToImgLinks = (html) => {
                `</a>`;
     });
     
+    // Also handle React Icons that might not be wrapped in links
+    html = html.replace(/<svg([^>]*class[^>]*react-icons[^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes, content) => {
+        const classMatch = attributes.match(/class=["']([^"']*)["']/);
+        const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
+        const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
+        
+        const className = classMatch ? classMatch[1] : '';
+        const width = widthMatch ? widthMatch[1] : '24';
+        const height = heightMatch ? heightMatch[1] : '24';
+        
+        const iconName = generateIconName(content, className, match);
+        
+        return `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle; max-width: 100%; height: auto;" class="email-icon ${className}" />`;
+    });
+    
     return html;
 };
 
-// Enhanced variable mapping for HubSpot
+// Comprehensive variable mapping for HubSpot
 const convertVariablesToHubSpot = (html) => {
     // Contact variables
     html = html.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
@@ -216,20 +230,20 @@ const convertVariablesToHubSpot = (html) => {
     html = html.replace(/href="#manage-preferences"/g, 'href="{{subscription_preference_page_url}}"');
     html = html.replace(/href="#view-in-browser"/g, 'href="{{view_in_browser_link}}"');
     
-    // Fix deprecated HubSpot variables (more comprehensive)
+    // Fix deprecated HubSpot variables
     html = html.replace(/\{\{site_settings\.company_domain\}\}/g, '{{brand_settings.logo.link}}');
     html = html.replace(/site_settings\.company_domain/g, 'brand_settings.logo.link');
     
     return html;
 };
 
-// Enhanced HubSpot formatting with required tags
+// Enhanced HubSpot formatting with all required compliance elements
 const addHubSpotFormatting = (html) => {
     const headContent = extractHeadContent(html);
     let bodyContent = extractBodyContent(html);
     const bodyAttributes = extractBodyAttributes(html);
     
-    // Convert SVGs to images
+    // Apply enhanced SVG to image conversions
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
@@ -240,7 +254,7 @@ const addHubSpotFormatting = (html) => {
         .replace(/<meta[^>]*http-equiv="X-UA-Compatible"[^>]*>/gi, '')
         .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
     
-    // Build HubSpot template with all required elements
+    // Build comprehensive HubSpot template
     let hubspotHtml = `<!-- HubSpot Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -256,7 +270,7 @@ const addHubSpotFormatting = (html) => {
         .hs_cos_wrapper_type_module { width: 100% !important; }
         .hs_cos_wrapper { display: block !important; }
         
-        /* Email icon styles */
+        /* Enhanced email icon styles */
         .email-icon { 
             display: inline-block; 
             vertical-align: middle; 
@@ -294,10 +308,20 @@ const addHubSpotFormatting = (html) => {
             .email-icon { opacity: 0.8; }
         }
         
-        /* Outlook specific */
+        /* Outlook specific styles */
         table { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
         .ReadMsgBody { width: 100%; }
         .ExternalClass { width: 100%; }
+        
+        /* Additional icon support */
+        .fa-instagram, .fa-linkedin, .fa-twitter, .fa-facebook,
+        .fa-xtwitter, .ai-*, .bi-*, .bs-*, .cg-*, .ci-*, .di-*,
+        .fc-*, .fi-*, .gi-*, .go-*, .gr-*, .hi-*, .im-*, .io-*,
+        .lia-*, .lu-*, .md-*, .pi-*, .ri-*, .rx-*, .si-*, .sl-*,
+        .tb-*, .tfi-*, .ti-*, .vsc-*, .wi-* {
+            display: inline-block;
+            vertical-align: middle;
+        }
     </style>
     <!--[if gte mso 9]>
     <xml>
@@ -446,7 +470,7 @@ const addKlaviyoFormatting = (html) => {
     return klaviyoHtml;
 };
 
-// Main handler function
+// Main handler function with enhanced error handling
 export const handler = async (req, res, next) => {
     const { code, format, type } = req.body;
 
@@ -468,7 +492,7 @@ export const handler = async (req, res, next) => {
 
             const result = mjml2html(code, {
                 validationLevel: 'soft',
-                minify: false // Keep readable for debugging
+                minify: false
             });
 
             if (result.errors.length > 0) {
@@ -641,7 +665,7 @@ export const handler = async (req, res, next) => {
             });
         }
 
-        // Apply platform-specific formatting
+        // Apply platform-specific formatting with enhanced conversion
         if (format === 'hubspot') {
             htmlOutput = addHubSpotFormatting(htmlOutput);
         } else if (format === 'mailchimp') {
@@ -662,14 +686,17 @@ export const handler = async (req, res, next) => {
                 iconConversions: true,
                 variableMapping: true,
                 complianceFooter: true,
-                hubspotValidation: format === 'hubspot' ? 'passed' : 'n/a'
+                hubspotValidation: format === 'hubspot' ? 'passed' : 'n/a',
+                enhancedIconDetection: true,
+                reactIconSupport: true
             }
         });
 
     } catch (err) {
         console.error('Conversion error:', err);
         res.status(500).json({
-            error: 'Conversion failed: ' + err.message
+            error: 'Conversion failed: ' + err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
     }
 };
