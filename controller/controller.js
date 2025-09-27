@@ -85,7 +85,22 @@ const extractBodyAttributes = (html) => {
 };
 
 // Improved SVG to Image conversion functions
-const generateIconName = (svgContent, className) => {
+const generateIconName = (svgContent, className, elementContent) => {
+    // Try to extract React Icon name from the element content or class
+    if (elementContent) {
+        // Look for React Icon component names in the content
+        const reactIconMatch = elementContent.match(/Fa([A-Z][a-zA-Z]*)/);
+        if (reactIconMatch) {
+            return `fa-${reactIconMatch[1].toLowerCase()}`;
+        }
+        
+        // Look for other icon library patterns
+        const iconLibMatch = elementContent.match(/([A-Z][a-z])([A-Z][a-zA-Z]*)/);
+        if (iconLibMatch) {
+            return `${iconLibMatch[1].toLowerCase()}-${iconLibMatch[2].toLowerCase()}`;
+        }
+    }
+    
     if (className) {
         return className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
     }
@@ -141,11 +156,25 @@ const convertReactIconsToImgLinks = (html) => {
         const href = hrefMatch ? hrefMatch[1] : '#';
         const linkClass = linkClassMatch ? linkClassMatch[1] : '';
         const svgClass = svgClassMatch ? svgClassMatch[1] : '';
-        const width = widthMatch ? widthMatch[1] : '24';
-        const height = heightMatch ? heightMatch[1] : '24';
+        let width = widthMatch ? widthMatch[1] : '24';
+        let height = heightMatch ? heightMatch[1] : '24';
         const linkStyle = styleMatch ? styleMatch[1] : 'text-decoration: none;';
         
-        const iconName = generateIconName(svgContent, svgClass || linkClass);
+        // Extract size from React Icon patterns in the original content
+        const sizeMatch = match.match(/size=\{(\d+)\}/);
+        if (sizeMatch) {
+            width = sizeMatch[1];
+            height = sizeMatch[1];
+        }
+        
+        // Try to extract icon name from the original React component
+        let iconName;
+        const reactIconMatch = match.match(/<Fa([A-Z][a-zA-Z]*)/);
+        if (reactIconMatch) {
+            iconName = `fa-${reactIconMatch[1].toLowerCase()}`;
+        } else {
+            iconName = generateIconName(svgContent, svgClass || linkClass, match);
+        }
         
         const imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
         
