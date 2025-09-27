@@ -51,7 +51,7 @@ import * as ReactIconsTi from 'react-icons/ti';
 import * as ReactIconsVsc from 'react-icons/vsc';
 import * as ReactIconsWi from 'react-icons/wi';
 
-// Function to detect if code is TypeScript
+// TypeScript detection function
 const isTypeScript = (code) => {
     const tsPatterns = [
         /:\s*(string|number|boolean|object|any|void|undefined|null)\s*[,;=\)]/,
@@ -65,256 +65,262 @@ const isTypeScript = (code) => {
         /:\s*\{[^}]*\}/,
         /\w+\s*:\s*\w+\s*\[/,
     ];
-    
     return tsPatterns.some(pattern => pattern.test(code));
 };
 
-// Helper function to extract head content
+// HTML content extraction helpers
 const extractHeadContent = (html) => {
     const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
     return headMatch ? headMatch[1] : '';
 };
 
-// Helper function to extract body content
 const extractBodyContent = (html) => {
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     return bodyMatch ? bodyMatch[1] : html;
 };
 
-// Helper function to extract body attributes
 const extractBodyAttributes = (html) => {
     const bodyMatch = html.match(/<body([^>]*)>/i);
     return bodyMatch ? bodyMatch[1] : '';
 };
 
-// Helper function to convert SVG icons to img elements
+// SVG to Image conversion functions
 const convertSvgToImg = (html) => {
-    // Convert SVG elements to img elements with placeholder src
+    // Convert SVG elements with class names
     html = html.replace(/<svg[^>]*class="([^"]*)"[^>]*>[\s\S]*?<\/svg>/gi, (match, className) => {
-        // Extract width and height if present
         const widthMatch = match.match(/width="?(\d+)"?/);
         const heightMatch = match.match(/height="?(\d+)"?/);
         const width = widthMatch ? widthMatch[1] : '24';
         const height = heightMatch ? heightMatch[1] : '24';
+        const iconName = className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
         
-        // Generate a placeholder image path based on class name
-        const iconName = className ? className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : 'icon';
-        
-        return `<img src="/images/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" class="icon-img" />`;
+        return '<img src="/images/icons/' + iconName + '.png" alt="' + iconName + '" width="' + width + '" height="' + height + '" style="display: inline-block; vertical-align: middle;" class="icon-img" />';
     });
     
-    // Handle SVGs without class names
+    // Convert SVG elements without class names
     html = html.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, (match) => {
         const widthMatch = match.match(/width="?(\d+)"?/);
         const heightMatch = match.match(/height="?(\d+)"?/);
         const width = widthMatch ? widthMatch[1] : '24';
         const height = heightMatch ? heightMatch[1] : '24';
         
-        return `<img src="/images/icons/default-icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" class="icon-img" />`;
+        return '<img src="/images/icons/default-icon.png" alt="icon" width="' + width + '" height="' + height + '" style="display: inline-block; vertical-align: middle;" class="icon-img" />';
     });
     
     return html;
 };
 
-// Helper function to convert React Icons to img links
 const convertReactIconsToImgLinks = (html) => {
-    // Convert common React Icon patterns to img elements wrapped in links
     html = html.replace(/<a[^>]*>[\s\S]*?<svg[^>]*>[\s\S]*?<\/svg>[\s\S]*?<\/a>/gi, (match) => {
-        // Extract href from the anchor tag
         const hrefMatch = match.match(/href="([^"]*)"/);
         const href = hrefMatch ? hrefMatch[1] : '#';
-        
-        // Extract any classes or styling from the anchor
         const classMatch = match.match(/class="([^"]*)"/);
         const className = classMatch ? classMatch[1] : '';
-        
-        // Extract any additional anchor attributes (target, style, etc.)
-        const anchorAttributes = match.match(/<a([^>]*?)>/)[1];
-        
-        // Extract SVG dimensions
         const svgMatch = match.match(/<svg[^>]*>/);
         const widthMatch = svgMatch ? svgMatch[0].match(/width="?(\d+)"?/) : null;
         const heightMatch = svgMatch ? svgMatch[0].match(/height="?(\d+)"?/) : null;
         const width = widthMatch ? widthMatch[1] : '24';
         const height = heightMatch ? heightMatch[1] : '24';
-        
-        // Generate icon name from classes if available
         const iconName = className ? className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : 'link-icon';
         
-        return `<a href="${href}" style="text-decoration: none;" class="${className}">
-            <img src="/images/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" class="icon-img" />
-        </a>`;
+        return '<a href="' + href + '" style="text-decoration: none;" class="' + className + '">' +
+               '<img src="/images/icons/' + iconName + '.png" alt="' + iconName + '" width="' + width + '" height="' + height + '" style="display: inline-block; vertical-align: middle;" class="icon-img" />' +
+               '</a>';
     });
     
     return html;
 };
 
-// Enhanced HubSpot variable mapping
+// Variable mapping for HubSpot
 const convertVariablesToHubSpot = (html) => {
-    // Contact/Person variables
+    // Contact variables
     html = html.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
     html = html.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
     html = html.replace(/\{\{contact\.email\}\}/g, '{{contact.email}}');
-    html = html.replace(/\{\{contact\.full_name\}\}/g, '{{contact.firstname}} {{contact.lastname}}');
     html = html.replace(/\{\{person\.first_name\}\}/g, '{{contact.firstname}}');
     html = html.replace(/\{\{person\.last_name\}\}/g, '{{contact.lastname}}');
     html = html.replace(/\{\{person\.email\}\}/g, '{{contact.email}}');
     
-    // Company/Organization variables - use site_settings for CAN-SPAM compliance
+    // Company variables for CAN-SPAM compliance
     html = html.replace(/\{\{company\.name\}\}/g, '{{site_settings.company_name}}');
     html = html.replace(/\{\{organization\.name\}\}/g, '{{site_settings.company_name}}');
     html = html.replace(/\{\{company\.address\}\}/g, '{{site_settings.company_street_address_1}}');
-    html = html.replace(/\{\{organization\.address\}\}/g, '{{site_settings.company_street_address_1}}');
     html = html.replace(/\{\{company\.city\}\}/g, '{{site_settings.company_city}}');
-    html = html.replace(/\{\{organization\.city\}\}/g, '{{site_settings.company_city}}');
     html = html.replace(/\{\{company\.state\}\}/g, '{{site_settings.company_state}}');
-    html = html.replace(/\{\{organization\.state\}\}/g, '{{site_settings.company_state}}');
     html = html.replace(/\{\{company\.zip\}\}/g, '{{site_settings.company_zip}}');
-    html = html.replace(/\{\{organization\.zip\}\}/g, '{{site_settings.company_zip}}');
-    html = html.replace(/\{\{company\.phone\}\}/g, '{{site_settings.company_phone}}');
-    html = html.replace(/\{\{company\.website\}\}/g, '{{site_settings.company_website}}');
     
-    // Unsubscribe and preference links
+    // Unsubscribe links
     html = html.replace(/href="#unsubscribe"/g, 'href="{{unsubscribe_link}}"');
-    html = html.replace(/href="#unsubscribe-all"/g, 'href="{{unsubscribe_link_all}}"');
     html = html.replace(/href="#manage-preferences"/g, 'href="{{subscription_preference_page_url}}"');
-    html = html.replace(/\{\{unsubscribe_url\}\}/g, '{{unsubscribe_link}}');
-    html = html.replace(/\{\{manage_preferences_url\}\}/g, '{{subscription_preference_page_url}}');
-    
-    // Email metadata
-    html = html.replace(/\{\{subject\}\}/g, '{{email_subject}}');
-    html = html.replace(/\{\{email\.subject\}\}/g, '{{email_subject}}');
-    html = html.replace(/\{\{preview_text\}\}/g, '{{email_preview_text}}');
-    
-    // Content variables
-    html = html.replace(/\{\{email\.title\}\}/g, '{{content.html_title}}');
-    html = html.replace(/\{\{page\.title\}\}/g, '{{content.html_title}}');
-    
-    // Date and time variables
-    html = html.replace(/\{\{current_date\}\}/g, '{{local_dt}}');
-    html = html.replace(/\{\{current_year\}\}/g, '{{year}}');
-    
-    // Campaign and tracking variables
-    html = html.replace(/\{\{campaign\.name\}\}/g, '{{campaign.name}}');
-    html = html.replace(/\{\{tracking_pixel\}\}/g, '{{email_tracking_pixel}}');
-    
-    // Social media and sharing
-    html = html.replace(/\{\{share_url\}\}/g, '{{share_page_url}}');
-    html = html.replace(/\{\{forward_url\}\}/g, '{{forward_page_url}}');
     
     return html;
 };
 
-// Platform-specific formatting functions
+// Platform formatting functions
 const addHubSpotFormatting = (html) => {
     const headContent = extractHeadContent(html);
     let bodyContent = extractBodyContent(html);
     const bodyAttributes = extractBodyAttributes(html);
     
-    // Convert SVGs to img elements first
+    // Convert SVGs to images
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
-    // HubSpot-specific modifications with proper token usage
-    let hubspotHtml = `<!-- HubSpot Email Template -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!--[if !mso]><!-->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!--<![endif]-->
-    <title>{{content.html_title}}</title>
-    {{standard_header_includes}}
+    // Build HubSpot template
+    let hubspotHtml = '<!-- HubSpot Email Template -->\n';
+    hubspotHtml += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
+    hubspotHtml += '<html xmlns="http://www.w3.org/1999/xhtml">\n';
+    hubspotHtml += '<head>\n';
+    hubspotHtml += '    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n';
+    hubspotHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n';
+    hubspotHtml += '    <meta http-equiv="X-UA-Compatible" content="IE=edge" />\n';
+    hubspotHtml += '    <title>{{content.html_title}}</title>\n';
+    hubspotHtml += '    {{standard_header_includes}}\n';
+    hubspotHtml += '    ' + headContent + '\n';
+    hubspotHtml += '    <style type="text/css">\n';
+    hubspotHtml += '        .hs_cos_wrapper_type_module { width: 100% !important; }\n';
+    hubspotHtml += '        .hs_cos_wrapper { display: block !important; }\n';
+    hubspotHtml += '        .icon-img { display: inline-block; vertical-align: middle; max-width: 100%; height: auto; }\n';
+    hubspotHtml += '        @media only screen and (max-width: 480px) {\n';
+    hubspotHtml += '            .mobile-hide { display: none !important; }\n';
+    hubspotHtml += '            .mobile-center { text-align: center !important; }\n';
+    hubspotHtml += '            .icon-img { max-width: 20px !important; }\n';
+    hubspotHtml += '        }\n';
+    hubspotHtml += '        .ExternalClass { width: 100%; }\n';
+    hubspotHtml += '        img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }\n';
+    hubspotHtml += '    </style>\n';
+    hubspotHtml += '</head>\n';
+    hubspotHtml += '<body' + bodyAttributes + '>\n';
+    hubspotHtml += '    <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">\n';
+    hubspotHtml += '        ' + bodyContent + '\n';
+    hubspotHtml += '    </div>\n';
+    hubspotHtml += '    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">\n';
+    hubspotHtml += '        <tr>\n';
+    hubspotHtml += '            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">\n';
+    hubspotHtml += '                {{site_settings.company_name}}<br>\n';
+    hubspotHtml += '                {{site_settings.company_street_address_1}}<br>\n';
+    hubspotHtml += '                {{site_settings.company_city}}, {{site_settings.company_state}} {{site_settings.company_zip}}<br>\n';
+    hubspotHtml += '                <br>\n';
+    hubspotHtml += '                {{unsubscribe_anchor}}<br>\n';
+    hubspotHtml += '                <a href="{{unsubscribe_link}}" style="color: #666666; text-decoration: underline;">Unsubscribe from this list</a> |\n';
+    hubspotHtml += '                <a href="{{unsubscribe_link_all}}" style="color: #666666; text-decoration: underline;">Unsubscribe from all emails</a> |\n';
+    hubspotHtml += '                <a href="{{subscription_preference_page_url}}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>\n';
+    hubspotHtml += '            </td>\n';
+    hubspotHtml += '        </tr>\n';
+    hubspotHtml += '    </table>\n';
+    hubspotHtml += '    {{email_tracking_pixel}}\n';
+    hubspotHtml += '    {{standard_footer_includes}}\n';
+    hubspotHtml += '</body>\n';
+    hubspotHtml += '</html>';
     
-    ${headContent}
-    
-    <style type="text/css">
-        /* HubSpot specific styles */
-        .hs_cos_wrapper_type_module { width: 100% !important; }
-        .hs_cos_wrapper { display: block !important; }
-        .hs_cos_wrapper_type_header,
-        .hs_cos_wrapper_type_footer { width: 100% !important; }
-        
-        /* Icon image styles */
-        .icon-img { 
-            display: inline-block; 
-            vertical-align: middle; 
-            max-width: 100%; 
-            height: auto;
-        }
-        
-        /* Mobile responsive */
-        @media only screen and (max-width: 480px) {
-            .mobile-hide { display: none !important; }
-            .mobile-center { text-align: center !important; }
-            .mobile-stack { display: block !important; width: 100% !important; }
-            .hs_cos_wrapper_type_module table { width: 100% !important; }
-            .icon-img { max-width: 20px !important; }
-        }
-        
-        /* Outlook fixes */
-        .ExternalClass { width: 100%; }
-        .ExternalClass, .ExternalClass p, .ExternalClass span, 
-        .ExternalClass font, .ExternalClass td, .ExternalClass div { 
-            line-height: 100%; 
-        }
-        
-        /* Image fixes for email clients */
-        img { 
-            border: 0; 
-            outline: none; 
-            text-decoration: none; 
-            -ms-interpolation-mode: bicubic;
-        }
-    </style>
-</head>
-<body${bodyAttributes}>
-    <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">
-        ${bodyContent}
-    </div>
-    
-    <!-- HubSpot CAN-SPAM compliant footer -->
-    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-        <tr>
-            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">
-                {{ organization.name|default:"Your Company Name" }}<br>
-                {% if organization.address %}{{ organization.address }}{% endif %}<br>
-                <a href="{% unsubscribe_url %}" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
-                <a href="{% manage_preferences_url %}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
-                {% if organization.city and organization.state %}
-                <br>{{ organization.city }}, {{ organization.state }}
-                {% endif %}
-            </td>
-        </tr>
-    </table>
-    
-    <!-- Klaviyo tracking pixel -->
-    {% track_opened %}
-</body>
-</html>`;
+    return convertVariablesToHubSpot(hubspotHtml);
+};
 
-    // Replace common patterns with Klaviyo template variables
+const addMailchimpFormatting = (html) => {
+    const headContent = extractHeadContent(html);
+    let bodyContent = extractBodyContent(html);
+    const bodyAttributes = extractBodyAttributes(html);
+    
+    bodyContent = convertSvgToImg(bodyContent);
+    bodyContent = convertReactIconsToImgLinks(bodyContent);
+    
+    let mailchimpHtml = '<!-- Mailchimp Email Template -->\n';
+    mailchimpHtml += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
+    mailchimpHtml += '<html xmlns="http://www.w3.org/1999/xhtml">\n';
+    mailchimpHtml += '<head>\n';
+    mailchimpHtml += '    <meta charset="UTF-8">\n';
+    mailchimpHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1">\n';
+    mailchimpHtml += '    <title>*|MC:SUBJECT|*</title>\n';
+    mailchimpHtml += '    ' + headContent + '\n';
+    mailchimpHtml += '    <style type="text/css">\n';
+    mailchimpHtml += '        body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }\n';
+    mailchimpHtml += '        .mcnPreviewText { display: none !important; }\n';
+    mailchimpHtml += '        .icon-img { display: inline-block; vertical-align: middle; }\n';
+    mailchimpHtml += '        @media only screen and (max-width: 480px) {\n';
+    mailchimpHtml += '            .icon-img { max-width: 20px !important; }\n';
+    mailchimpHtml += '        }\n';
+    mailchimpHtml += '    </style>\n';
+    mailchimpHtml += '</head>\n';
+    mailchimpHtml += '<body' + bodyAttributes + '>\n';
+    mailchimpHtml += '    <span class="mcnPreviewText" style="display:none;">*|MC:PREVIEW_TEXT|*</span>\n';
+    mailchimpHtml += '    <center>\n';
+    mailchimpHtml += '        <table width="100%" border="0" cellpadding="0" cellspacing="0">\n';
+    mailchimpHtml += '            <tr><td align="center" style="padding: 20px;">\n';
+    mailchimpHtml += '                <table width="600" border="0" cellpadding="0" cellspacing="0">\n';
+    mailchimpHtml += '                    <tr><td>' + bodyContent + '</td></tr>\n';
+    mailchimpHtml += '                    <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">\n';
+    mailchimpHtml += '                        *|LIST:COMPANY|*<br>*|LIST:ADDRESSLINE|*<br>\n';
+    mailchimpHtml += '                        <a href="*|UNSUB|*" style="color: #666666;">Unsubscribe</a> |\n';
+    mailchimpHtml += '                        <a href="*|UPDATE_PROFILE|*" style="color: #666666;">Update Preferences</a>\n';
+    mailchimpHtml += '                    </td></tr>\n';
+    mailchimpHtml += '                </table>\n';
+    mailchimpHtml += '            </td></tr>\n';
+    mailchimpHtml += '        </table>\n';
+    mailchimpHtml += '    </center>\n';
+    mailchimpHtml += '</body>\n';
+    mailchimpHtml += '</html>';
+    
+    // Replace variables
+    mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.first_name\}\}/g, '*|FNAME|*');
+    mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.last_name\}\}/g, '*|LNAME|*');
+    mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.email\}\}/g, '*|EMAIL|*');
+    
+    return mailchimpHtml;
+};
+
+const addKlaviyoFormatting = (html) => {
+    const headContent = extractHeadContent(html);
+    let bodyContent = extractBodyContent(html);
+    const bodyAttributes = extractBodyAttributes(html);
+    
+    bodyContent = convertSvgToImg(bodyContent);
+    bodyContent = convertReactIconsToImgLinks(bodyContent);
+    
+    let klaviyoHtml = '<!-- Klaviyo Email Template -->\n';
+    klaviyoHtml += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
+    klaviyoHtml += '<html xmlns="http://www.w3.org/1999/xhtml">\n';
+    klaviyoHtml += '<head>\n';
+    klaviyoHtml += '    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n';
+    klaviyoHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>\n';
+    klaviyoHtml += '    <title>{% if event.subject %}{{ event.subject }}{% else %}Email Update{% endif %}</title>\n';
+    klaviyoHtml += '    ' + headContent + '\n';
+    klaviyoHtml += '    <style type="text/css">\n';
+    klaviyoHtml += '        body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }\n';
+    klaviyoHtml += '        .icon-img { display: inline-block; vertical-align: middle; }\n';
+    klaviyoHtml += '        @media only screen and (max-width: 480px) {\n';
+    klaviyoHtml += '            .icon-img { max-width: 20px !important; }\n';
+    klaviyoHtml += '        }\n';
+    klaviyoHtml += '    </style>\n';
+    klaviyoHtml += '</head>\n';
+    klaviyoHtml += '<body' + bodyAttributes + '>\n';
+    klaviyoHtml += '    <table width="100%" border="0" cellpadding="0" cellspacing="0">\n';
+    klaviyoHtml += '        <tr><td align="center">\n';
+    klaviyoHtml += '            <table width="600" border="0" cellpadding="0" cellspacing="0">\n';
+    klaviyoHtml += '                <tr><td style="padding: 20px;">' + bodyContent + '</td></tr>\n';
+    klaviyoHtml += '            </table>\n';
+    klaviyoHtml += '        </td></tr>\n';
+    klaviyoHtml += '    </table>\n';
+    klaviyoHtml += '    <table width="100%" border="0" cellpadding="0" cellspacing="0">\n';
+    klaviyoHtml += '        <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">\n';
+    klaviyoHtml += '            {{ organization.name|default:"Your Company Name" }}<br>\n';
+    klaviyoHtml += '            {% if organization.address %}{{ organization.address }}{% endif %}<br>\n';
+    klaviyoHtml += '            <a href="{% unsubscribe_url %}" style="color: #666666;">Unsubscribe</a> |\n';
+    klaviyoHtml += '            <a href="{% manage_preferences_url %}" style="color: #666666;">Manage Preferences</a>\n';
+    klaviyoHtml += '        </td></tr>\n';
+    klaviyoHtml += '    </table>\n';
+    klaviyoHtml += '    {% track_opened %}\n';
+    klaviyoHtml += '</body>\n';
+    klaviyoHtml += '</html>';
+    
+    // Replace variables
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.email\}\}/g, '{{ person.email }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.name\}\}/g, '{{ organization.name|default:"Your Company" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.address\}\}/g, '{{ organization.address|default:"" }}');
-    klaviyoHtml = klaviyoHtml.replace(/href="#unsubscribe"/g, 'href="{% unsubscribe_url %}"');
-    klaviyoHtml = klaviyoHtml.replace(/href="#manage-preferences"/g, 'href="{% manage_preferences_url %}"');
-    
-    // Add Klaviyo-specific click tracking to links (more precise regex)
-    klaviyoHtml = klaviyoHtml.replace(/<a\s+(?!.*data-kl-track-click)([^>]*href="[^"]*"[^>]*)>/gi, '<a $1 data-kl-track-click="true">');
-    
-    // Replace product/event variables if they exist
-    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.name\}\}/g, '{{ event.product_name|default:"" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.price\}\}/g, '{{ event.product_price|default:"" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.image\}\}/g, '{{ event.product_image_url|default:"" }}');
     
     return klaviyoHtml;
 };
 
+// Main handler function
 export const handler = async (req, res, next) => {
     const { code, format, type } = req.body;
 
@@ -328,7 +334,6 @@ export const handler = async (req, res, next) => {
         let htmlOutput = '';
 
         if (type === 'mjml') {
-            // Validate MJML structure
             if (!code.includes('<mjml>') || !code.includes('</mjml>')) {
                 return res.status(400).json({
                     error: 'Invalid MJML: Code must be enclosed in <mjml> tags'
@@ -350,15 +355,9 @@ export const handler = async (req, res, next) => {
             htmlOutput = result.html;
 
         } else if (type === 'react-email') {
-            // Check if the code is TypeScript
             const isTS = isTypeScript(code);
             
-            // Configure Babel presets based on detected language
-            const babelPresets = [
-                'react',
-                ['env', { modules: 'commonjs' }]
-            ];
-            
+            const babelPresets = ['react', ['env', { modules: 'commonjs' }]];
             if (isTS) {
                 babelPresets.push(['typescript', { 
                     allowDeclareFields: true,
@@ -367,29 +366,19 @@ export const handler = async (req, res, next) => {
                 }]);
             }
 
-            // Transpile JSX/TSX code and convert ES modules to CommonJS
             let transpiledCode;
             try {
-                const babelConfig = {
+                transpiledCode = Babel.transform(code, {
                     filename: isTS ? 'component.tsx' : 'component.jsx',
                     presets: babelPresets
-                };
-
-                if (isTS) {
-                    babelConfig.plugins = [];
-                } else {
-                    babelConfig.plugins = [];
-                }
-
-                transpiledCode = Babel.transform(code, babelConfig).code;
+                }).code;
             } catch (babelError) {
                 console.error('Babel transformation error:', babelError);
                 return res.status(400).json({
-                    error: `Code transformation failed: ${babelError.message}. Make sure your ${isTS ? 'TypeScript' : 'JavaScript'} syntax is valid.`
+                    error: 'Code transformation failed: ' + babelError.message
                 });
             }
 
-            // Define a comprehensive module map for the sandbox
             const moduleMap = {
                 'react': React,
                 '@react-email/components': ReactEmailComponents,
@@ -407,8 +396,6 @@ export const handler = async (req, res, next) => {
                 '@react-email/hr': ReactEmailHr,
                 '@react-email/preview': ReactEmailPreview,
                 '@react-email/render': { render },
-                
-                // React Icons modules
                 'react-icons/ai': ReactIconsAi,
                 'react-icons/bi': ReactIconsBi,
                 'react-icons/bs': ReactIconsBs,
@@ -442,7 +429,6 @@ export const handler = async (req, res, next) => {
                 'react-icons/wi': ReactIconsWi
             };
 
-            // Initialize the module system
             const moduleExports = {};
             const moduleObject = { 
                 exports: moduleExports,
@@ -451,7 +437,6 @@ export const handler = async (req, res, next) => {
                 }
             };
 
-            // Use a VM to safely execute the transpiled code
             const vm = new VM({
                 timeout: 10000,
                 sandbox: {
@@ -463,7 +448,7 @@ export const handler = async (req, res, next) => {
                         if (moduleMap[moduleName]) {
                             return moduleMap[moduleName];
                         }
-                        throw new Error(`Module "${moduleName}" is not supported in the sandbox. Available modules: ${Object.keys(moduleMap).join(', ')}`);
+                        throw new Error('Module "' + moduleName + '" is not supported');
                     },
                     console: {
                         log: (...args) => console.log('[Sandbox]', ...args),
@@ -473,72 +458,36 @@ export const handler = async (req, res, next) => {
                 }
             });
 
-            // Execute the code in the sandbox
             try {
                 const script = new VMScript(transpiledCode);
                 vm.run(script);
             } catch (vmError) {
                 console.error('VM execution error:', vmError);
                 return res.status(500).json({
-                    error: `Code execution failed: ${vmError.message}`
+                    error: 'Code execution failed: ' + vmError.message
                 });
             }
 
-            // Get the default export - try multiple approaches
             let EmailComponent = moduleExports.default || moduleObject.exports.default || moduleExports;
 
-            // Debug: log what we actually got
-            console.log('Module exports:', Object.keys(moduleExports));
-            console.log('Module exports default:', moduleExports.default);
-            console.log('Component type:', typeof EmailComponent);
-
-            // If the default export is an object, try to find a component within it
             if (EmailComponent && typeof EmailComponent === 'object') {
-                console.log('Default export is object, keys:', Object.keys(EmailComponent));
-                
-                // Common patterns for React components in objects
-                const possibleComponentKeys = ['default', 'component', 'Component', 'Email', 'Template'];
-                
-                for (const key of possibleComponentKeys) {
+                const possibleKeys = ['default', 'component', 'Component', 'Email', 'Template'];
+                for (const key of possibleKeys) {
                     if (EmailComponent[key] && typeof EmailComponent[key] === 'function') {
-                        console.log(`Found component at key: ${key}`);
                         EmailComponent = EmailComponent[key];
                         break;
                     }
                 }
-                
-                // If still an object, try the first function property
-                if (typeof EmailComponent === 'object') {
-                    const functionKeys = Object.keys(EmailComponent).filter(key => 
-                        typeof EmailComponent[key] === 'function'
-                    );
-                    
-                    if (functionKeys.length > 0) {
-                        console.log(`Using first function property: ${functionKeys[0]}`);
-                        EmailComponent = EmailComponent[functionKeys[0]];
-                    }
-                }
             }
 
-            // If still no component, check if the entire exports object is the component
             if (!EmailComponent && typeof moduleExports === 'function') {
                 EmailComponent = moduleExports;
             }
 
-            // Final validation
-            if (!EmailComponent) {
-                throw new Error(`No default export found. Module exports: ${Object.keys(moduleExports).join(', ') || 'none'}. Make sure your component has 'export default ComponentName'`);
+            if (!EmailComponent || typeof EmailComponent !== 'function') {
+                throw new Error('No valid React component found in export');
             }
 
-            if (typeof EmailComponent !== 'function') {
-                const availableExports = Object.keys(moduleExports).map(key => 
-                    `${key}: ${typeof moduleExports[key]}`
-                ).join(', ');
-                
-                throw new Error(`Default export is not a function/component. Got: ${typeof EmailComponent}. Available exports: ${availableExports || 'none'}`);
-            }
-
-            // Try to create and validate the component
             let componentElement;
             try {
                 componentElement = React.createElement(EmailComponent);
@@ -546,15 +495,14 @@ export const handler = async (req, res, next) => {
                     throw new Error("Component does not return a valid React element");
                 }
             } catch (componentError) {
-                throw new Error(`Component creation failed: ${componentError.message}`);
+                throw new Error('Component creation failed: ' + componentError.message);
             }
 
-            // Render the component to HTML
             try {
                 htmlOutput = await render(componentElement);
             } catch (renderError) {
                 console.error('Render error:', renderError);
-                throw new Error(`Email rendering failed: ${renderError.message}`);
+                throw new Error('Email rendering failed: ' + renderError.message);
             }
 
         } else {
@@ -581,302 +529,7 @@ export const handler = async (req, res, next) => {
     } catch (err) {
         console.error('Conversion error:', err);
         res.status(500).json({
-            error: `Conversion failed: ${err.message}`
+            error: 'Conversion failed: ' + err.message
         });
     }
-}; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">
-                <!-- Required CAN-SPAM compliance information -->
-                {{site_settings.company_name}}<br>
-                {{site_settings.company_street_address_1}}<br>
-                {{site_settings.company_city}}, {{site_settings.company_state}} {{site_settings.company_zip}}<br>
-                <br>
-                <!-- Required unsubscribe links - using both options for maximum compliance -->
-                {{unsubscribe_anchor}}<br>
-                <a href="{{unsubscribe_link}}" style="color: #666666; text-decoration: underline;">Unsubscribe from this list</a> | 
-                <a href="{{unsubscribe_link_all}}" style="color: #666666; text-decoration: underline;">Unsubscribe from all emails</a> | 
-                <a href="{{subscription_preference_page_url}}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
-            </td>
-        </tr>
-    </table>
-    
-    <!-- HubSpot tracking pixel -->
-    {{email_tracking_pixel}}
-    {{standard_footer_includes}}
-</body>
-</html>`;
-
-    // Apply comprehensive variable conversion
-    hubspotHtml = convertVariablesToHubSpot(hubspotHtml);
-    
-    return hubspotHtml;
 };
-
-const addMailchimpFormatting = (html) => {
-    const headContent = extractHeadContent(html);
-    let bodyContent = extractBodyContent(html);
-    const bodyAttributes = extractBodyAttributes(html);
-    
-    // Convert SVGs to img elements for Mailchimp compatibility
-    bodyContent = convertSvgToImg(bodyContent);
-    bodyContent = convertReactIconsToImgLinks(bodyContent);
-    
-    let mailchimpHtml = `<!-- Mailchimp Email Template -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="color-scheme" content="light dark"/>
-    <meta name="supported-color-schemes" content="light dark"/>
-    <title>*|MC:SUBJECT|*</title>
-    
-    ${headContent}
-    
-    <style type="text/css">
-        /* Reset styles */
-        body {
-            margin: 0;
-            padding: 0;
-            min-width: 100% !important;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 16px;
-            line-height: 1.5;
-            color: #333333;
-            background-color: #ffffff;
-        }
-        
-        /* Mailchimp specific */
-        #bodyTable, #bodyCell { height: 100%; margin: 0; padding: 0; width: 100%; }
-        .mcnPreviewText { display: none !important; }
-        .mcnImage { width: 100% !important; }
-        
-        /* Icon image styles */
-        .icon-img { 
-            display: inline-block; 
-            vertical-align: middle; 
-            max-width: 100%; 
-            height: auto;
-        }
-        
-        /* Responsive styles */
-        @media only screen and (min-width: 768px) {
-            .templateContainer { width: 600px !important; }
-        }
-        
-        @media only screen and (max-width: 480px) {
-            body, table, td, p, a, li, blockquote { -webkit-text-size-adjust: none !important; }
-            body { width: 100% !important; min-width: 100% !important; }
-            
-            .mcnTextContent, .mcnBoxedTextContentContainer { 
-                padding-right: 18px !important; 
-                padding-left: 18px !important; 
-            }
-            
-            .mcnImageCardTopImageContent, .mcnCaptionBottomContent:last-child .mcnCaptionBottomImageContent,
-            .mcnCaptionBlockInner .mcnCaptionTopContent:last-child .mcnTextContent { 
-                padding-top: 18px !important; 
-            }
-            
-            .mcnTextContent { word-break: break-word; }
-            .icon-img { max-width: 20px !important; }
-            
-            h1 { font-size: 22px !important; line-height: 125% !important; }
-            h2 { font-size: 20px !important; line-height: 125% !important; }
-            h3 { font-size: 18px !important; line-height: 125% !important; }
-            h4 { font-size: 16px !important; line-height: 150% !important; }
-            
-            .mcnTextContent, .mcnBoxedTextContentContainer .mcnTextContent p { 
-                font-size: 14px !important; 
-                line-height: 150% !important; 
-            }
-        }
-        
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            body { background-color: #1a1a1a !important; color: #ffffff !important; }
-            .mcnTextContent, .mcnTextContent p { color: #ffffff !important; }
-            a { color: #4da8ff !important; }
-        }
-        
-        /* Image fixes for email clients */
-        img { 
-            border: 0; 
-            outline: none; 
-            text-decoration: none; 
-            -ms-interpolation-mode: bicubic;
-        }
-    </style>
-</head>
-<body${bodyAttributes} style="background-color: #ffffff;">
-    <!-- Preheader -->
-    <span class="mcnPreviewText" style="display:none; font-size:0px; line-height:0px; max-height:0px; max-width:0px; opacity:0; overflow:hidden; visibility:hidden; mso-hide:all;">*|MC:PREVIEW_TEXT|*</span>
-    
-    <center>
-        <table align="center" border="0" cellpadding="0" cellspacing="0" height="100%" width="100%" id="bodyTable" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" valign="top" id="bodyCell" style="padding: 20px;">
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="templateContainer" style="max-width: 600px;">
-                        <tr>
-                            <td valign="top" id="templateBody">
-                                ${bodyContent}
-                            </td>
-                        </tr>
-                        <!-- Footer -->
-                        <tr>
-                            <td valign="top" id="templateFooter">
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" class="mcnTextContentContainer">
-                                    <tr>
-                                        <td class="mcnTextContent" style="padding: 20px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666; text-align: center;">
-                                            *|LIST:COMPANY|*<br>
-                                            *|LIST:ADDRESSLINE|*<br>
-                                            <a href="*|UNSUB|*" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
-                                            <a href="*|UPDATE_PROFILE|*" style="color: #666666; text-decoration: underline;">Update Preferences</a> |
-                                            <a href="*|ARCHIVE|*" style="color: #666666; text-decoration: underline;">View in Browser</a>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </center>
-    
-    <!-- Mailchimp required merge tags -->
-    <div style="display: none;">
-        *|UNSUB|* *|UPDATE_PROFILE|* *|LIST:ADDRESSLINE|* *|REWARDS|* *|ARCHIVE|*
-    </div>
-</body>
-</html>`;
-
-    // Replace common patterns with Mailchimp merge tags
-    mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.first_name\}\}/g, '*|FNAME|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.last_name\}\}/g, '*|LNAME|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.email\}\}/g, '*|EMAIL|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{company\.name\}\}/g, '*|LIST:COMPANY|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{company\.address\}\}/g, '*|LIST:ADDRESSLINE|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{subject\}\}/g, '*|MC:SUBJECT|*');
-    mailchimpHtml = mailchimpHtml.replace(/href="#unsubscribe"/g, 'href="*|UNSUB|*"');
-    mailchimpHtml = mailchimpHtml.replace(/href="#manage-preferences"/g, 'href="*|UPDATE_PROFILE|*"');
-    mailchimpHtml = mailchimpHtml.replace(/href="#view-online"/g, 'href="*|ARCHIVE|*"');
-    
-    return mailchimpHtml;
-};
-
-const addKlaviyoFormatting = (html) => {
-    const headContent = extractHeadContent(html);
-    let bodyContent = extractBodyContent(html);
-    const bodyAttributes = extractBodyAttributes(html);
-    
-    // Convert SVGs to img elements for Klaviyo compatibility
-    bodyContent = convertSvgToImg(bodyContent);
-    bodyContent = convertReactIconsToImgLinks(bodyContent);
-    
-    let klaviyoHtml = `<!-- Klaviyo Email Template -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="format-detection" content="telephone=no"/>
-    <meta name="format-detection" content="date=no"/>
-    <meta name="format-detection" content="address=no"/>
-    <meta name="format-detection" content="email=no"/>
-    <meta name="color-scheme" content="light dark"/>
-    <meta name="supported-color-schemes" content="light dark"/>
-    <title>{% if event.subject %}{{ event.subject }}{% else %}{{ organization.name|default:"Email Update" }}{% endif %}</title>
-    
-    ${headContent}
-    
-    <style type="text/css">
-        /* Reset styles */
-        body {
-            margin: 0;
-            padding: 0;
-            min-width: 100% !important;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 16px;
-            line-height: 1.5;
-            color: #333333;
-        }
-        
-        .ReadMsgBody { width: 100%; }
-        .ExternalClass { width: 100%; }
-        .ExternalClass, .ExternalClass p, .ExternalClass span, 
-        .ExternalClass font, .ExternalClass td, .ExternalClass div { 
-            line-height: 100%; 
-        }
-        
-        table, td { 
-            mso-table-lspace: 0pt; 
-            mso-table-rspace: 0pt; 
-            border-collapse: collapse; 
-        }
-        
-        img { 
-            -ms-interpolation-mode: bicubic; 
-            border: 0; 
-            outline: none; 
-            display: block; 
-        }
-        
-        /* Icon image styles */
-        .icon-img { 
-            display: inline-block; 
-            vertical-align: middle; 
-            max-width: 100%; 
-            height: auto;
-        }
-        
-        /* Responsive styles */
-        @media only screen and (max-width: 480px) {
-            .kl-mobile-hide { display: none !important; }
-            .kl-mobile-center { text-align: center !important; }
-            .kl-mobile-stack { 
-                display: block !important; 
-                width: 100% !important; 
-            }
-            .kl-mobile-full-width { width: 100% !important; }
-            .icon-img { max-width: 20px !important; }
-        }
-        
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            .dark-mode-bg { background-color: #1a1a1a !important; }
-            .dark-mode-text { color: #ffffff !important; }
-        }
-        
-        /* Klaviyo specific classes */
-        .kl-container { width: 100%; max-width: 600px; margin: 0 auto; }
-        .kl-section { width: 100%; }
-        .kl-column { display: inline-block; vertical-align: top; }
-    </style>
-</head>
-<body${bodyAttributes} style="margin: 0; padding: 0; background-color: #f4f4f4;">
-    <!-- Preheader (hidden preview text) -->
-    <div style="display: none; max-height: 0; overflow: hidden;">
-        {% if event.preview_text %}{{ event.preview_text }}{% else %}{{ organization.name|default:"" }} - Latest Updates{% endif %}
-    </div>
-    
-    <!-- Wrapper table for better Outlook compatibility -->
-    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-        <tr>
-            <td align="center">
-                <table role="presentation" class="kl-container" border="0" cellspacing="0" cellpadding="0">
-                    <tr>
-                        <td style="padding: 20px;">
-                            ${bodyContent}
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-    
-    <!-- Klaviyo footer -->
-    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-        <tr>
-            <td style="padding: 20px; text-align: center;
