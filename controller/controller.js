@@ -35,7 +35,7 @@ import * as ReactIconsGr from 'react-icons/gr';
 import * as ReactIconsHi from 'react-icons/hi';
 import * as ReactIconsHi2 from 'react-icons/hi2';
 import * as ReactIconsIm from 'react-icons/im';
-import * * ReactIconsIo from 'react-icons/io';
+import * as ReactIconsIo from 'react-icons/io';
 import * as ReactIconsIo5 from 'react-icons/io5';
 import * as ReactIconsLia from 'react-icons/lia';
 import * as ReactIconsLu from 'react-icons/lu';
@@ -53,6 +53,7 @@ import * as ReactIconsWi from 'react-icons/wi';
 
 // Function to detect if code is TypeScript
 const isTypeScript = (code) => {
+    // Common TypeScript patterns
     const tsPatterns = [
         /:\s*(string|number|boolean|object|any|void|undefined|null)\s*[,;=\)]/,
         /interface\s+\w+/,
@@ -69,32 +70,17 @@ const isTypeScript = (code) => {
     return tsPatterns.some(pattern => pattern.test(code));
 };
 
-// Helper function to extract head content
-const extractHeadContent = (html) => {
-    const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-    return headMatch ? headMatch[1] : '';
-};
-
-// Helper function to extract body content
-const extractBodyContent = (html) => {
-    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    return bodyMatch ? bodyMatch[1] : html;
-};
-
-// Helper function to extract body attributes
-const extractBodyAttributes = (html) => {
-    const bodyMatch = html.match(/<body([^>]*)>/i);
-    return bodyMatch ? bodyMatch[1] : '';
-};
-
 // Platform-specific formatting functions
 const addHubSpotFormatting = (html) => {
-    const headContent = extractHeadContent(html);
-    const bodyContent = extractBodyContent(html);
-    const bodyAttributes = extractBodyAttributes(html);
+    // HubSpot-specific modifications
+    let hubspotHtml = html;
     
-    // HubSpot-specific modifications with proper token usage
-    let hubspotHtml = `<!-- HubSpot Email Template -->
+    // Add required HubSpot header and footer includes
+    const hubspotHeader = `{{ standard_header_includes }}`;
+    const hubspotFooter = `{{ standard_footer_includes }}`;
+    
+    // Add HubSpot module wrapper with required includes
+    hubspotHtml = `<!-- HubSpot Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -104,74 +90,47 @@ const addHubSpotFormatting = (html) => {
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <!--<![endif]-->
     <title>{{content.html_title}}</title>
-    {{ standard_header_includes }}
-    
-    ${headContent}
-    
+    ${hubspotHeader}
     <style type="text/css">
         /* HubSpot specific styles */
         .hs_cos_wrapper_type_module { width: 100% !important; }
         .hs_cos_wrapper { display: block !important; }
-        .hs_cos_wrapper_type_header,
-        .hs_cos_wrapper_type_footer { width: 100% !important; }
-        
-        /* Mobile responsive */
         @media only screen and (max-width: 480px) {
             .mobile-hide { display: none !important; }
             .mobile-center { text-align: center !important; }
-            .mobile-stack { display: block !important; width: 100% !important; }
-            .hs_cos_wrapper_type_module table { width: 100% !important; }
-        }
-        
-        /* Outlook fixes */
-        .ExternalClass { width: 100%; }
-        .ExternalClass, .ExternalClass p, .ExternalClass span, 
-        .ExternalClass font, .ExternalClass td, .ExternalClass div { 
-            line-height: 100%; 
         }
     </style>
 </head>
-<body${bodyAttributes}>
+<body>
     <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">
-        ${bodyContent}
+        ${hubspotHtml}
     </div>
-    
-    <!-- HubSpot tracking and unsubscribe -->
-    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-        <tr>
-            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">
-                {{company.name}}<br>
-                {{company.address}}<br>
-                <a href="{{ unsubscribe_link }}" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
-                <a href="{{ subscription_preference_page_url }}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
-            </td>
-        </tr>
-    </table>
-    
-    <!-- HubSpot tracking pixel -->
-    {{ email_tracking_pixel }}
-    {{ standard_footer_includes }}
+    <!-- HubSpot tracking -->
+    <img src="{{brand_settings.logo.link}}" width="1" height="1" style="display:none;" />
+    ${hubspotFooter}
 </body>
 </html>`;
-
+    
+    // Replace deprecated tokens with current ones
+    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.company_domain\}\}/g, '{{brand_settings.logo.link}}');
+    hubspotHtml = hubspotHtml.replace(/href="http/g, 'href="{{brand_settings.logo.link}}/');
+    hubspotHtml = hubspotHtml.replace(/\{\{site_settings\.email_tracking_pixel\}\}/g, '{{brand_settings.logo.link}}');
+    
     // Replace common patterns with HubSpot tokens
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
     hubspotHtml = hubspotHtml.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
-    hubspotHtml = hubspotHtml.replace(/\{\{contact\.email\}\}/g, '{{contact.email}}');
     hubspotHtml = hubspotHtml.replace(/\{\{company\.name\}\}/g, '{{company.name}}');
-    hubspotHtml = hubspotHtml.replace(/\{\{company\.address\}\}/g, '{{company.address}}');
-    hubspotHtml = hubspotHtml.replace(/href="#unsubscribe"/g, 'href="{{ unsubscribe_link }}"');
-    hubspotHtml = hubspotHtml.replace(/href="#manage-preferences"/g, 'href="{{ subscription_preference_page_url }}"');
     
     return hubspotHtml;
 };
 
 const addMailchimpFormatting = (html) => {
-    const headContent = extractHeadContent(html);
-    const bodyContent = extractBodyContent(html);
-    const bodyAttributes = extractBodyAttributes(html);
+    // Mailchimp-specific modifications
+    let mailchimpHtml = html;
     
-    let mailchimpHtml = `<!-- Mailchimp Email Template -->
+    // Add Mailchimp template structure
+    mailchimpHtml = `<!-- Mailchimp Email Template -->
+<!-- Mailchimp Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -182,9 +141,6 @@ const addMailchimpFormatting = (html) => {
     <meta name="color-scheme" content="light dark"/>
     <meta name="supported-color-schemes" content="light dark"/>
     <title>*|MC:SUBJECT|*</title>
-    
-    ${headContent}
-    
     <style type="text/css">
         /* Reset styles */
         body {
@@ -197,53 +153,40 @@ const addMailchimpFormatting = (html) => {
             color: #333333;
             background-color: #ffffff;
         }
-        
-        /* Mailchimp specific */
-        #bodyTable, #bodyCell { height: 100%; margin: 0; padding: 0; width: 100%; }
+        p { margin: 10px 0; padding: 0; }
+        table { border-collapse: collapse; }
+        h1,h2,h3,h4,h5,h6 { display: block; margin: 0; padding: 0; }
+        img,a img { border: 0; height: auto; outline: none; text-decoration: none; display: block; }
+        #bodyTable,#bodyCell { height: 100%; margin: 0; padding: 0; width: 100%; }
         .mcnPreviewText { display: none !important; }
-        .mcnImage { width: 100% !important; }
         
         /* Responsive styles */
         @media only screen and (min-width: 768px) {
             .templateContainer { width: 600px !important; }
         }
-        
         @media only screen and (max-width: 480px) {
-            body, table, td, p, a, li, blockquote { -webkit-text-size-adjust: none !important; }
+            body,table,td,p,a,li,blockquote { -webkit-text-size-adjust: none !important; }
             body { width: 100% !important; min-width: 100% !important; }
-            
-            .mcnTextContent, .mcnBoxedTextContentContainer { 
-                padding-right: 18px !important; 
-                padding-left: 18px !important; 
-            }
-            
-            .mcnImageCardTopImageContent, .mcnCaptionBottomContent:last-child .mcnCaptionBottomImageContent,
-            .mcnCaptionBlockInner .mcnCaptionTopContent:last-child .mcnTextContent { 
-                padding-top: 18px !important; 
-            }
-            
+            .mcnImage { width: 100% !important; }
+            .mcnTextContent,.mcnBoxedTextContentContainer { padding-right: 18px !important; padding-left: 18px !important; }
+            .mcnImageCardTopImageContent,.mcnCaptionBottomContent:last-child .mcnCaptionBottomImageContent,.mcnCaptionBlockInner .mcnCaptionTopContent:last-child .mcnTextContent { padding-top: 18px !important; }
             .mcnTextContent { word-break: break-word; }
-            
             h1 { font-size: 22px !important; line-height: 125% !important; }
             h2 { font-size: 20px !important; line-height: 125% !important; }
             h3 { font-size: 18px !important; line-height: 125% !important; }
             h4 { font-size: 16px !important; line-height: 150% !important; }
-            
-            .mcnTextContent, .mcnBoxedTextContentContainer .mcnTextContent p { 
-                font-size: 14px !important; 
-                line-height: 150% !important; 
-            }
+            .mcnTextContent,.mcnBoxedTextContentContainer .mcnTextContent p { font-size: 14px !important; line-height: 150% !important; }
         }
         
         /* Dark mode support */
         @media (prefers-color-scheme: dark) {
             body { background-color: #1a1a1a !important; color: #ffffff !important; }
-            .mcnTextContent, .mcnTextContent p { color: #ffffff !important; }
+            .mcnTextContent,.mcnTextContent p { color: #ffffff !important; }
             a { color: #4da8ff !important; }
         }
     </style>
 </head>
-<body${bodyAttributes} style="background-color: #ffffff;">
+<body style="background-color: #ffffff;">
     <!-- Preheader -->
     <span class="mcnPreviewText" style="display:none; font-size:0px; line-height:0px; max-height:0px; max-width:0px; opacity:0; overflow:hidden; visibility:hidden; mso-hide:all;">*|MC:PREVIEW_TEXT|*</span>
     
@@ -254,7 +197,16 @@ const addMailchimpFormatting = (html) => {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" class="templateContainer" style="max-width: 600px;">
                         <tr>
                             <td valign="top" id="templateBody">
-                                ${bodyContent}
+                                <!-- Main content -->
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" class="mcnTextContentContainer">
+                                    <tr>
+                                        <td class="mcnTextContent" style="padding: 20px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; color: #333333;">
+                                            <h1>Welcome, *|FNAME|*!</h1>
+                                            <p>This is a placeholder for your email content. Customize this section with your message, images, and links.</p>
+                                            <a href="https://example.com" style="display: inline-block; padding: 10px 20px; background-color: #007c89; color: #ffffff; text-decoration: none; border-radius: 5px;">Call to Action</a>
+                                        </td>
+                                    </tr>
+                                </table>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -263,11 +215,9 @@ const addMailchimpFormatting = (html) => {
                                 <table border="0" cellpadding="0" cellspacing="0" width="100%" class="mcnTextContentContainer">
                                     <tr>
                                         <td class="mcnTextContent" style="padding: 20px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666; text-align: center;">
-                                            *|LIST:COMPANY|*<br>
                                             *|LIST:ADDRESSLINE|*<br>
                                             <a href="*|UNSUB|*" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
-                                            <a href="*|UPDATE_PROFILE|*" style="color: #666666; text-decoration: underline;">Update Preferences</a> |
-                                            <a href="*|ARCHIVE|*" style="color: #666666; text-decoration: underline;">View in Browser</a>
+                                            <a href="*|UPDATE_PROFILE|*" style="color: #666666; text-decoration: underline;">Update Preferences</a>
                                         </td>
                                     </tr>
                                 </table>
@@ -279,33 +229,29 @@ const addMailchimpFormatting = (html) => {
         </table>
     </center>
     
-    <!-- Mailchimp required merge tags -->
+    <!-- Mailchimp merge tags -->
     <div style="display: none;">
-        *|UNSUB|* *|UPDATE_PROFILE|* *|LIST:ADDRESSLINE|* *|REWARDS|* *|ARCHIVE|*
+        *|UNSUB|* *|UPDATE_PROFILE|* *|LIST:ADDRESSLINE|* *|REWARDS|*
     </div>
 </body>
 </html>`;
-
+    
     // Replace common patterns with Mailchimp merge tags
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.first_name\}\}/g, '*|FNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.last_name\}\}/g, '*|LNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.email\}\}/g, '*|EMAIL|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{company\.name\}\}/g, '*|LIST:COMPANY|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{company\.address\}\}/g, '*|LIST:ADDRESSLINE|*');
-    mailchimpHtml = mailchimpHtml.replace(/\{\{subject\}\}/g, '*|MC:SUBJECT|*');
     mailchimpHtml = mailchimpHtml.replace(/href="#unsubscribe"/g, 'href="*|UNSUB|*"');
-    mailchimpHtml = mailchimpHtml.replace(/href="#manage-preferences"/g, 'href="*|UPDATE_PROFILE|*"');
-    mailchimpHtml = mailchimpHtml.replace(/href="#view-online"/g, 'href="*|ARCHIVE|*"');
     
     return mailchimpHtml;
 };
 
 const addKlaviyoFormatting = (html) => {
-    const headContent = extractHeadContent(html);
-    const bodyContent = extractBodyContent(html);
-    const bodyAttributes = extractBodyAttributes(html);
+    // Klaviyo-specific modifications
+    let klaviyoHtml = html;
     
-    let klaviyoHtml = `<!-- Klaviyo Email Template -->
+    // Add Klaviyo template structure
+    klaviyoHtml = `<!-- Klaviyo Email Template -->
+<!-- Klaviyo Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -317,10 +263,7 @@ const addKlaviyoFormatting = (html) => {
     <meta name="format-detection" content="email=no"/>
     <meta name="color-scheme" content="light dark"/>
     <meta name="supported-color-schemes" content="light dark"/>
-    <title>{% if event.subject %}{{ event.subject }}{% else %}{{ organization.name|default:"Email Update" }}{% endif %}</title>
-    
-    ${headContent}
-    
+    <title>{% if event.subject %}{{ event.subject }}{% else %}Your Email Subject{% endif %}</title>
     <style type="text/css">
         /* Reset styles */
         body {
@@ -332,35 +275,17 @@ const addKlaviyoFormatting = (html) => {
             line-height: 1.5;
             color: #333333;
         }
-        
         .ReadMsgBody { width: 100%; }
         .ExternalClass { width: 100%; }
-        .ExternalClass, .ExternalClass p, .ExternalClass span, 
-        .ExternalClass font, .ExternalClass td, .ExternalClass div { 
-            line-height: 100%; 
-        }
-        
-        table, td { 
-            mso-table-lspace: 0pt; 
-            mso-table-rspace: 0pt; 
-            border-collapse: collapse; 
-        }
-        
-        img { 
-            -ms-interpolation-mode: bicubic; 
-            border: 0; 
-            outline: none; 
-            display: block; 
-        }
+        .ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div { line-height: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-collapse: collapse; }
+        img { -ms-interpolation-mode: bicubic; border: 0; outline: none; display: block; }
         
         /* Responsive styles */
         @media only screen and (max-width: 480px) {
             .kl-mobile-hide { display: none !important; }
             .kl-mobile-center { text-align: center !important; }
-            .kl-mobile-stack { 
-                display: block !important; 
-                width: 100% !important; 
-            }
+            .kl-mobile-stack { display: block !important; width: 100% !important; }
             .kl-mobile-full-width { width: 100% !important; }
         }
         
@@ -376,10 +301,10 @@ const addKlaviyoFormatting = (html) => {
         .kl-column { display: inline-block; vertical-align: top; }
     </style>
 </head>
-<body${bodyAttributes} style="margin: 0; padding: 0; background-color: #f4f4f4;">
+<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
     <!-- Preheader (hidden preview text) -->
     <div style="display: none; max-height: 0; overflow: hidden;">
-        {% if event.preview_text %}{{ event.preview_text }}{% else %}{{ organization.name|default:"" }} - Latest Updates{% endif %}
+        {% if event.preview_text %}{{ event.preview_text }}{% else %}Discover our latest offers!{% endif %}
     </div>
     
     <!-- Wrapper table for better Outlook compatibility -->
@@ -389,7 +314,18 @@ const addKlaviyoFormatting = (html) => {
                 <table role="presentation" class="kl-container" border="0" cellspacing="0" cellpadding="0">
                     <tr>
                         <td style="padding: 20px;">
-                            ${bodyContent}
+                            <!-- Main content goes here -->
+                            <!-- Replace ${klaviyoHtml} with actual content -->
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td style="padding: 20px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; color: #333333;">
+                                        <!-- Example content -->
+                                        <h1>Welcome to Our Newsletter!</h1>
+                                        <p>This is a placeholder for your email content. Customize this section with your message, images, and links.</p>
+                                        <a href="{{ cta_url | default: 'https://example.com' }}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px;">Call to Action</a>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                 </table>
@@ -397,42 +333,32 @@ const addKlaviyoFormatting = (html) => {
         </tr>
     </table>
     
-    <!-- Klaviyo footer -->
+    <!-- Klaviyo tracking pixel -->
+    {% track_opened %}
+    
+    <!-- Klaviyo unsubscribe footer -->
     <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
         <tr>
             <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">
-                {{ organization.name|default:"Your Company Name" }}<br>
-                {% if organization.address %}{{ organization.address }}{% endif %}<br>
+                {% if organization.name %}{{ organization.name }}{% else %}Your Company Name{% endif %}<br>
+                {% if organization.address %}{{ organization.address }}{% else %}123 Example St, City, Country{% endif %}<br>
                 <a href="{% unsubscribe_url %}" style="color: #666666; text-decoration: underline;">Unsubscribe</a> | 
                 <a href="{% manage_preferences_url %}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
-                {% if organization.city and organization.state %}
-                <br>{{ organization.city }}, {{ organization.state }}
-                {% endif %}
             </td>
         </tr>
     </table>
-    
-    <!-- Klaviyo tracking pixel -->
-    {% track_opened %}
 </body>
 </html>`;
-
+    
     // Replace common patterns with Klaviyo template variables
-    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name|default:"" }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"there" }}');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.email\}\}/g, '{{ person.email }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.name\}\}/g, '{{ organization.name|default:"Your Company" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.address\}\}/g, '{{ organization.address|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/href="#unsubscribe"/g, 'href="{% unsubscribe_url %}"');
-    klaviyoHtml = klaviyoHtml.replace(/href="#manage-preferences"/g, 'href="{% manage_preferences_url %}"');
+    klaviyoHtml = klaviyoHtml.replace(/\{\{company\.name\}\}/g, '{{ organization.name }}');
     
-    // Add Klaviyo-specific click tracking to links (more precise regex)
-    klaviyoHtml = klaviyoHtml.replace(/<a\s+(?!.*data-kl-track-click)([^>]*href="[^"]*"[^>]*)>/gi, '<a $1 data-kl-track-click="true">');
-    
-    // Replace product/event variables if they exist
-    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.name\}\}/g, '{{ event.product_name|default:"" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.price\}\}/g, '{{ event.product_price|default:"" }}');
-    klaviyoHtml = klaviyoHtml.replace(/\{\{product\.image\}\}/g, '{{ event.product_image_url|default:"" }}');
+    // Add Klaviyo-specific attributes for tracking
+    klaviyoHtml = klaviyoHtml.replace(/<a\s+href="([^"]*)"([^>]*)>/g, '<a href="$1" data-kl-track-click="true"$2>');
     
     return klaviyoHtml;
 };
@@ -493,13 +419,16 @@ export const handler = async (req, res, next) => {
             let transpiledCode;
             try {
                 const babelConfig = {
-                    filename: isTS ? 'component.tsx' : 'component.jsx',
+                    filename: isTS ? 'component.tsx' : 'component.jsx', // Required for TypeScript preset
                     presets: babelPresets
                 };
 
+                // Only add plugins that are available in @babel/standalone
                 if (isTS) {
+                    // For TypeScript, we rely mainly on the typescript preset
                     babelConfig.plugins = [];
                 } else {
+                    // For regular JavaScript, we can use some basic plugins
                     babelConfig.plugins = [];
                 }
 
@@ -575,7 +504,7 @@ export const handler = async (req, res, next) => {
 
             // Use a VM to safely execute the transpiled code
             const vm = new VM({
-                timeout: 10000,
+                timeout: 10000, // Increased timeout for complex templates
                 sandbox: {
                     React,
                     exports: moduleExports,
@@ -602,3 +531,108 @@ export const handler = async (req, res, next) => {
             } catch (vmError) {
                 console.error('VM execution error:', vmError);
                 return res.status(500).json({
+                    error: `Code execution failed: ${vmError.message}`
+                });
+            }
+
+            // Get the default export - try multiple approaches
+            let EmailComponent = moduleExports.default || moduleObject.exports.default || moduleExports;
+
+            // Debug: log what we actually got
+            console.log('Module exports:', Object.keys(moduleExports));
+            console.log('Module exports default:', moduleExports.default);
+            console.log('Component type:', typeof EmailComponent);
+
+            // If the default export is an object, try to find a component within it
+            if (EmailComponent && typeof EmailComponent === 'object') {
+                console.log('Default export is object, keys:', Object.keys(EmailComponent));
+                
+                // Common patterns for React components in objects
+                const possibleComponentKeys = ['default', 'component', 'Component', 'Email', 'Template'];
+                
+                for (const key of possibleComponentKeys) {
+                    if (EmailComponent[key] && typeof EmailComponent[key] === 'function') {
+                        console.log(`Found component at key: ${key}`);
+                        EmailComponent = EmailComponent[key];
+                        break;
+                    }
+                }
+                
+                // If still an object, try the first function property
+                if (typeof EmailComponent === 'object') {
+                    const functionKeys = Object.keys(EmailComponent).filter(key => 
+                        typeof EmailComponent[key] === 'function'
+                    );
+                    
+                    if (functionKeys.length > 0) {
+                        console.log(`Using first function property: ${functionKeys[0]}`);
+                        EmailComponent = EmailComponent[functionKeys[0]];
+                    }
+                }
+            }
+
+            // If still no component, check if the entire exports object is the component
+            if (!EmailComponent && typeof moduleExports === 'function') {
+                EmailComponent = moduleExports;
+            }
+
+            // Final validation
+            if (!EmailComponent) {
+                throw new Error(`No default export found. Module exports: ${Object.keys(moduleExports).join(', ') || 'none'}. Make sure your component has 'export default ComponentName'`);
+            }
+
+            if (typeof EmailComponent !== 'function') {
+                const availableExports = Object.keys(moduleExports).map(key => 
+                    `${key}: ${typeof moduleExports[key]}`
+                ).join(', ');
+                
+                throw new Error(`Default export is not a function/component. Got: ${typeof EmailComponent}. Available exports: ${availableExports || 'none'}`);
+            }
+
+            // Try to create and validate the component
+            let componentElement;
+            try {
+                componentElement = React.createElement(EmailComponent);
+                if (!React.isValidElement(componentElement)) {
+                    throw new Error("Component does not return a valid React element");
+                }
+            } catch (componentError) {
+                throw new Error(`Component creation failed: ${componentError.message}`);
+            }
+
+            // Render the component to HTML
+            try {
+                htmlOutput = await render(componentElement);
+            } catch (renderError) {
+                console.error('Render error:', renderError);
+                throw new Error(`Email rendering failed: ${renderError.message}`);
+            }
+
+        } else {
+            return res.status(400).json({
+                error: 'Invalid type. Must be "mjml" or "react-email"'
+            });
+        }
+
+        // Apply platform-specific formatting
+        if (format === 'hubspot') {
+            htmlOutput = addHubSpotFormatting(htmlOutput);
+        } else if (format === 'mailchimp') {
+            htmlOutput = addMailchimpFormatting(htmlOutput);
+        } else if (format === 'klaviyo') {
+            htmlOutput = addKlaviyoFormatting(htmlOutput);
+        } else {
+            return res.status(400).json({
+                error: 'Invalid format. Must be "hubspot", "mailchimp", or "klaviyo"'
+            });
+        }
+
+        res.status(200).json({ result: htmlOutput });
+
+    } catch (err) {
+        console.error('Conversion error:', err);
+        res.status(500).json({
+            error: `Conversion failed: ${err.message}`
+        });
+    }
+};
