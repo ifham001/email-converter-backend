@@ -51,24 +51,6 @@ import * as ReactIconsTi from 'react-icons/ti';
 import * as ReactIconsVsc from 'react-icons/vsc';
 import * as ReactIconsWi from 'react-icons/wi';
 
-// ----------------------------------------------------------------------------------
-// CRITICAL FIX: Social Media Icon Mapping
-// Use the actual CDN image links based on the context of the user's provided screenshots.
-const SOCIAL_ICON_MAP = {
-    // Note: The specific paths for Instagram/LinkedIn are inferred, adjust if needed
-    'instagram.com/bitsandpretzels': 'https://cdn.migma.ai/icons/fa_instagram_512x512_000000.png', 
-    'linkedin.com/company/bits-pretzels': 'https://cdn.migma.ai/icons/fa_linkedin_512x512_000000.png',
-    'twitter.com/bitsandpretzels': 'https://cdn.migma.ai/icons/fa_twitter_512x512_000000.png',
-    'facebook.com/bitsandpretzels': 'https://cdn.migma.ai/icons/fa_facebook_512x512_000000.png',
-    // Fallback for general domains if specific path isn't found
-    'instagram.com': 'https://cdn.migma.ai/icons/fa_instagram_512x512_000000.png', 
-    'linkedin.com': 'https://cdn.migma.ai/icons/fa_linkedin_512x512_000000.png',   
-    'twitter.com': 'https://cdn.migma.ai/icons/fa_twitter_512x512_000000.png',     
-    'facebook.com': 'https://cdn.migma.ai/icons/fa_facebook_512x512_000000.png',   
-};
-
-// ----------------------------------------------------------------------------------
-
 // TypeScript detection function
 const isTypeScript = (code) => {
     const tsPatterns = [
@@ -102,69 +84,75 @@ const extractBodyAttributes = (html) => {
     return bodyMatch ? bodyMatch[1] : '';
 };
 
-// **UPDATED:** Convert SVG to simple IMG tag with static placeholder
-// Note: This only handles non-linked SVGs, using the generic placeholder.
+// SIMPLIFIED: Convert SVG to simple IMG tag with static placeholder
 const convertSvgToImg = (html) => {
+    // Just replace all SVGs with a simple placeholder image
     html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes) => {
+        // Extract width and height if available
         const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
         const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
         
-        // Ensure dimensions are not zero and default to 24x24
-        let width = (widthMatch && parseInt(widthMatch[1]) > 0) ? widthMatch[1] : '24';
-        let height = (heightMatch && parseInt(heightMatch[1]) > 0) ? heightMatch[1] : '24';
+        // Default to 24x24 if not specified
+        const width = widthMatch ? widthMatch[1] : '24';
+        const height = heightMatch ? heightMatch[1] : '24';
         
-        // This remains a generic placeholder for non-social icons
+        // Use a static placeholder PNG that your team's compiler will replace
         return `<img src="https://placeholder.com/icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />`;
     });
     
     return html;
 };
 
-// **CRITICALLY UPDATED:** Handle SVGs inside anchor tags to use real icon URLs
+// SIMPLIFIED: Handle SVGs inside anchor tags
 const convertReactIconsToImgLinks = (html) => {
-    const ICON_WIDTH = '24';
-    const ICON_HEIGHT = '24';
-    
     // Handle SVGs within anchor tags - preserve the anchor, replace SVG with img
     html = html.replace(/<a([^>]*)>([\s\S]*?)<svg([^>]*)>([\s\S]*?)<\/svg>([\s\S]*?)<\/a>/gi, 
         (match, linkAttribs, beforeSvg, svgAttribs, svgContent, afterSvg) => {
-            
+            // Extract href
             const hrefMatch = linkAttribs.match(/href=["']([^"']*)["']/);
-            const href = hrefMatch ? hrefMatch[1] : '';
+            const href = hrefMatch ? hrefMatch[1] : '#';
             
-            let imageUrl = "https://placeholder.com/icon.png"; // Default placeholder
-            
-            // CRITICAL ADDITION: Check the href for a match and use a real URL
-            for (const domain in SOCIAL_ICON_MAP) {
-                if (href.includes(domain)) {
-                    imageUrl = SOCIAL_ICON_MAP[domain];
-                    break;
-                }
-            }
-            
-            // Extract SVG dimensions, ensuring they are not zero
+            // Extract SVG dimensions
             const widthMatch = svgAttribs.match(/width=["']?(\d+)["']?/);
             const heightMatch = svgAttribs.match(/height=["']?(\d+)["']?/);
             
-            let width = (widthMatch && parseInt(widthMatch[1]) > 0) ? widthMatch[1] : ICON_WIDTH;
-            let height = (heightMatch && parseInt(heightMatch[1]) > 0) ? heightMatch[1] : ICON_HEIGHT;
+            // CRITICAL FIX: Ensure width/height are never 0
+            let width = widthMatch ? widthMatch[1] : '24';
+            let height = heightMatch ? heightMatch[1] : '24';
             
-            // Return anchor with image tag using the determined imageUrl
+            // Force 24 if width is 0 or invalid
+            if (!width || width === '0' || width === 'undefined' || width === 'null') {
+                width = '24';
+            }
+            if (!height || height === '0' || height === 'undefined' || height === 'null') {
+                height = '24';
+            }
+            
+            // Return anchor with simple img inside
             return `<a${linkAttribs}>` +
                    `${beforeSvg}` +
-                   `<img src="${imageUrl}" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />` +
+                   `<img src="https://placeholder.com/icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />` +
                    `${afterSvg}` +
                    `</a>`;
         }
     );
     
-    // Handle any remaining standalone SVGs (will use the generic placeholder)
+    // Handle any remaining standalone SVGs
     html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes) => {
         const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
         const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
         
-        let width = (widthMatch && parseInt(widthMatch[1]) > 0) ? widthMatch[1] : ICON_WIDTH;
-        let height = (heightMatch && parseInt(heightMatch[1]) > 0) ? heightMatch[1] : ICON_HEIGHT;
+        // CRITICAL FIX: Ensure width/height are never 0
+        let width = widthMatch ? widthMatch[1] : '24';
+        let height = heightMatch ? heightMatch[1] : '24';
+        
+        // Force 24 if width is 0 or invalid
+        if (!width || width === '0' || width === 'undefined' || width === 'null') {
+            width = '24';
+        }
+        if (!height || height === '0' || height === 'undefined' || height === 'null') {
+            height = '24';
+        }
         
         return `<img src="https://placeholder.com/icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />`;
     });
@@ -175,9 +163,10 @@ const convertReactIconsToImgLinks = (html) => {
 // FIXED: Enhanced variable conversion for HubSpot with template preservation
 const convertVariablesToHubSpot = (html) => {
     // Replace "Servus there" and similar greetings with HubSpot tokens
+    // Handle cases with HTML comments in between
+    html = html.replace(/>Servus <!-- -->there<!-- -->,/g, '>Servus {{contact.firstname|default:"there"}},');
     html = html.replace(/>Servus there,/g, '>Servus {{contact.firstname|default:"there"}},');
-    html = html.replace(/>Servus there,/g, '>Servus {{contact.firstname|default:"there"}},');
-    html = html.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 {{contact.firstname|default:"there"}}');
+    html = html.replace(/\b(Hi|Hello|Dear|Hey) <!-- -->there<!-- -->\b/gi, '$1 {{contact.firstname|default:"there"}}');
     html = html.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 {{contact.firstname|default:"there"}}');
     
     // Contact variables
@@ -222,7 +211,7 @@ const addHubSpotFormatting = (html) => {
     let bodyContent = extractBodyContent(html);
     const bodyAttributes = extractBodyAttributes(html);
     
-    // Apply enhanced SVG to image conversions (Now fixed)
+    // Apply enhanced SVG to image conversions
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
@@ -239,7 +228,8 @@ const addHubSpotFormatting = (html) => {
         .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
     
     // Build comprehensive HubSpot template
-    let hubspotHtml = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    let hubspotHtml = `<!-- HubSpot Email Template -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -302,7 +292,15 @@ const addHubSpotFormatting = (html) => {
             vertical-align: middle !important;
         }
     </style>
-    </head>
+    <!--[if gte mso 9]>
+    <xml>
+        <o:OfficeDocumentSettings>
+            <o:AllowPNG/>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+    </xml>
+    <![endif]-->
+</head>
 <body${bodyAttributes}>
     <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">
         ${bodyContent}
@@ -311,6 +309,7 @@ const addHubSpotFormatting = (html) => {
     // Only add CAN-SPAM footer if one doesn't exist
     if (!hasFooter) {
         hubspotHtml += `
+    <!-- CAN-SPAM Compliance Footer -->
     <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 20px;">
         <tr>
             <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666; line-height: 18px;">
@@ -331,6 +330,7 @@ const addHubSpotFormatting = (html) => {
     }
     
     hubspotHtml += `
+    <!-- HubSpot footer includes (handles tracking automatically) -->
     {{standard_footer_includes}}
 </body>
 </html>`;
@@ -351,7 +351,8 @@ const addMailchimpFormatting = (html) => {
     const hasFooter = bodyContent.includes('Unsubscribe') || 
                      bodyContent.includes('unsubscribe');
     
-    let mailchimpHtml = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    let mailchimpHtml = `<!-- Mailchimp Email Template -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
@@ -421,7 +422,8 @@ const addKlaviyoFormatting = (html) => {
     const hasFooter = bodyContent.includes('Unsubscribe') || 
                      bodyContent.includes('unsubscribe');
     
-    let klaviyoHtml = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    let klaviyoHtml = `<!-- Klaviyo Email Template -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -692,8 +694,8 @@ export const handler = async (req, res, next) => {
                 platform: format,
                 type: type,
                 fixes: {
-                    iconWidthFixed: true, 
-                    socialIconUrlsFixed: true, // New fix highlighted
+                    iconWidthFixed: true,
+                    iconNamingImproved: true,
                     personalizationTokensAdded: true,
                     duplicateFooterPrevented: true,
                     svgPathDetection: true
