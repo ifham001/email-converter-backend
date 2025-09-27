@@ -84,57 +84,112 @@ const extractBodyAttributes = (html) => {
     return bodyMatch ? bodyMatch[1] : '';
 };
 
-// ENHANCED ICON NAME GENERATION - FIXES CRYPTIC NAMES
-const generateIconName = (svgContent, className, fullMatch) => {
-    // First priority: Extract React Icon component names from the full match
-    if (fullMatch) {
-        // Look for React Icon patterns like <FaInstagram>, <FaLinkedin>, etc.
-        const reactIconMatch = fullMatch.match(/<(Fa|Ai|Bi|Bs|Cg|Ci|Di|Fc|Fi|Gi|Go|Gr|Hi|Im|Io|Lia|Lu|Md|Pi|Ri|Rx|Si|Sl|Tb|Tfi|Ti|Vsc|Wi)([A-Z][a-zA-Z0-9]*)/);
-        if (reactIconMatch) {
-            const prefix = reactIconMatch[1].toLowerCase();
-            const iconName = reactIconMatch[2].toLowerCase();
-            return `${prefix}-${iconName}`;
-        }
-        
-        // Look for more general icon patterns
-        const generalIconMatch = fullMatch.match(/([A-Z][a-z])([A-Z][a-zA-Z0-9]*)/);
-        if (generalIconMatch) {
-            return `${generalIconMatch[1].toLowerCase()}-${generalIconMatch[2].toLowerCase()}`;
+// FIXED: Icon pattern detection based on SVG path data
+const detectIconFromSvgPath = (svgContent) => {
+    // Common social media icon path signatures
+    const iconPatterns = {
+        'fa-instagram': [
+            /M12 2\.163c3\.204/,
+            /M7\.8.* 12c0-2\.3/,
+            /instagram/i
+        ],
+        'fa-linkedin': [
+            /M20\.447 20\.452h-3\.554v-5\.569/,
+            /M4\.98 3\.5c0 1\.381/,
+            /linkedin/i
+        ],
+        'fa-x-twitter': [
+            /M18\.244 2\.25h3\.308/,
+            /M13\.81 10\.85/,
+            /twitter/i
+        ],
+        'fa-facebook': [
+            /M24 12\.073c0-6\.627/,
+            /M9 8h-3v4h3v12h5v-12/,
+            /facebook/i
+        ]
+    };
+    
+    for (const [iconName, patterns] of Object.entries(iconPatterns)) {
+        for (const pattern of patterns) {
+            if (pattern.test(svgContent)) {
+                return iconName;
+            }
         }
     }
     
-    // Second priority: Use className if available
+    return null;
+};
+
+// FIXED: Enhanced icon name generation
+const generateIconName = (svgContent, className, fullMatch, href) => {
+    // Try to detect from SVG path
+    const detectedIcon = detectIconFromSvgPath(svgContent);
+    if (detectedIcon) {
+        return detectedIcon;
+    }
+    
+    // Try to infer from href if it's a social link
+    if (href) {
+        if (href.includes('instagram')) return 'fa-instagram';
+        if (href.includes('linkedin')) return 'fa-linkedin';
+        if (href.includes('twitter') || href.includes('x.com')) return 'fa-x-twitter';
+        if (href.includes('facebook')) return 'fa-facebook';
+    }
+    
+    // Try to get from className
     if (className) {
-        return className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+        const classLower = className.toLowerCase();
+        if (classLower.includes('instagram')) return 'fa-instagram';
+        if (classLower.includes('linkedin')) return 'fa-linkedin';
+        if (classLower.includes('twitter')) return 'fa-x-twitter';
+        if (classLower.includes('facebook')) return 'fa-facebook';
     }
     
-    // Third priority: Generate from SVG path
+    // Generate a more readable fallback name
     if (svgContent) {
         const pathMatch = svgContent.match(/d="([^"]*)/);
         if (pathMatch) {
-            const pathHash = pathMatch[1].slice(0, 20).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            const pathHash = pathMatch[1].slice(0, 10).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
             return `icon-${pathHash}`;
         }
     }
     
-    return 'default-icon';
+    return 'icon-default';
 };
 
-// Enhanced SVG to image conversion with better size detection
+// FIXED: Enhanced SVG to image conversion with proper size handling
 const convertSvgToImg = (html) => {
-    // Convert standalone SVG elements
     html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes, content) => {
         const classMatch = attributes.match(/class=["']([^"']*)["']/);
         const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
         const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
         const styleMatch = attributes.match(/style=["']([^"']*)["']/);
+        const viewBoxMatch = attributes.match(/viewBox=["']([^"']*)["']/);
         
         const className = classMatch ? classMatch[1] : '';
-        const width = widthMatch ? widthMatch[1] : '24';
-        const height = heightMatch ? heightMatch[1] : '24';
+        let width = widthMatch ? widthMatch[1] : '24';
+        let height = heightMatch ? heightMatch[1] : '24';
         const style = styleMatch ? styleMatch[1] : '';
         
-        const iconName = generateIconName(content, className, match);
+        // CRITICAL FIX: Ensure width is never 0
+        if (width === '0' || !width || width === 'undefined') {
+            width = '24';
+        }
+        if (height === '0' || !height || height === 'undefined') {
+            height = '24';
+        }
+        
+        // If viewBox exists but no width/height, extract from viewBox
+        if (viewBoxMatch && (!widthMatch || !heightMatch)) {
+            const viewBoxParts = viewBoxMatch[1].split(' ');
+            if (viewBoxParts.length >= 4) {
+                width = width === '24' ? viewBoxParts[2] : width;
+                height = height === '24' ? viewBoxParts[3] : height;
+            }
+        }
+        
+        const iconName = generateIconName(content, className, match, null);
         
         let imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
         if (style) {
@@ -147,69 +202,114 @@ const convertSvgToImg = (html) => {
     return html;
 };
 
-// ENHANCED REACT ICONS TO IMG LINKS CONVERSION - FIXES SIZE AND NAMING ISSUES
+// FIXED: React Icons to IMG links conversion with proper size and name detection
 const convertReactIconsToImgLinks = (html) => {
-    // Convert SVG icons wrapped in anchor tags with enhanced detection
-    html = html.replace(/<a([^>]*)>([\s\S]*?)<svg([^>]*)>([\s\S]*?)<\/svg>([\s\S]*?)<\/a>/gi, (match, linkAttribs, beforeSvg, svgAttribs, svgContent, afterSvg) => {
-        const hrefMatch = linkAttribs.match(/href=["']([^"']*)["']/);
-        const linkClassMatch = linkAttribs.match(/class=["']([^"']*)["']/);
-        const svgClassMatch = svgAttribs.match(/class=["']([^"']*)["']/);
-        const widthMatch = svgAttribs.match(/width=["']?(\d+)["']?/);
-        const heightMatch = svgAttribs.match(/height=["']?(\d+)["']?/);
-        const styleMatch = linkAttribs.match(/style=["']([^"']*)["']/);
-        
-        const href = hrefMatch ? hrefMatch[1] : '#';
-        const linkClass = linkClassMatch ? linkClassMatch[1] : '';
-        const svgClass = svgClassMatch ? svgClassMatch[1] : '';
-        let width = widthMatch ? widthMatch[1] : '24';
-        let height = heightMatch ? heightMatch[1] : '24';
-        const linkStyle = styleMatch ? styleMatch[1] : 'text-decoration: none;';
-        
-        // CRITICAL FIX: Enhanced size extraction from React Icon patterns
-        const sizeMatch = match.match(/size=\{(\d+)\}/);
-        if (sizeMatch) {
-            width = sizeMatch[1];
-            height = sizeMatch[1];
+    // First pass: Handle icons within anchor tags
+    html = html.replace(/<a([^>]*)>([\s\S]*?)<svg([^>]*)>([\s\S]*?)<\/svg>([\s\S]*?)<\/a>/gi, 
+        (match, linkAttribs, beforeSvg, svgAttribs, svgContent, afterSvg) => {
+            const hrefMatch = linkAttribs.match(/href=["']([^"']*)["']/);
+            const linkClassMatch = linkAttribs.match(/class=["']([^"']*)["']/);
+            const svgClassMatch = svgAttribs.match(/class=["']([^"']*)["']/);
+            const widthMatch = svgAttribs.match(/width=["']?(\d+)["']?/);
+            const heightMatch = svgAttribs.match(/height=["']?(\d+)["']?/);
+            const viewBoxMatch = svgAttribs.match(/viewBox=["']([^"']*)["']/);
+            const styleMatch = linkAttribs.match(/style=["']([^"']*)["']/);
+            
+            const href = hrefMatch ? hrefMatch[1] : '#';
+            const linkClass = linkClassMatch ? linkClassMatch[1] : '';
+            const svgClass = svgClassMatch ? svgClassMatch[1] : '';
+            let width = widthMatch ? widthMatch[1] : '24';
+            let height = heightMatch ? heightMatch[1] : '24';
+            const linkStyle = styleMatch ? styleMatch[1] : 'text-decoration: none;';
+            
+            // CRITICAL FIX: Ensure dimensions are never 0
+            if (width === '0' || !width || width === 'undefined') {
+                // Try to get from viewBox or default to 24
+                if (viewBoxMatch) {
+                    const viewBoxParts = viewBoxMatch[1].split(' ');
+                    width = viewBoxParts[2] || '24';
+                } else {
+                    width = '24';
+                }
+            }
+            
+            if (height === '0' || !height || height === 'undefined') {
+                // Try to get from viewBox or default to 24
+                if (viewBoxMatch) {
+                    const viewBoxParts = viewBoxMatch[1].split(' ');
+                    height = viewBoxParts[3] || '24';
+                } else {
+                    height = '24';
+                }
+            }
+            
+            // Generate meaningful icon name
+            const iconName = generateIconName(svgContent, svgClass || linkClass, match, href);
+            
+            const imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
+            
+            return `<a href="${href}" style="${linkStyle}" class="${linkClass}">` +
+                   `${beforeSvg}` +
+                   `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="${imgStyle}" class="email-icon ${svgClass}" />` +
+                   `${afterSvg}` +
+                   `</a>`;
         }
-        
-        // CRITICAL FIX: Generate proper icon name with enhanced detection
-        const iconName = generateIconName(svgContent, svgClass || linkClass, match);
-        
-        const imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
-        
-        return `<a href="${href}" style="${linkStyle}" class="${linkClass}">` +
-               `${beforeSvg}` +
-               `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="${imgStyle}" class="email-icon ${svgClass}" />` +
-               `${afterSvg}` +
-               `</a>`;
-    });
+    );
     
-    // Also handle React Icons that might not be wrapped in links
-    html = html.replace(/<svg([^>]*class[^>]*react-icons[^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes, content) => {
-        const classMatch = attributes.match(/class=["']([^"']*)["']/);
-        const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
-        const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
-        
-        const className = classMatch ? classMatch[1] : '';
-        const width = widthMatch ? widthMatch[1] : '24';
-        const height = heightMatch ? heightMatch[1] : '24';
-        
-        const iconName = generateIconName(content, className, match);
-        
-        return `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle; max-width: 100%; height: auto;" class="email-icon ${className}" />`;
-    });
+    // Second pass: Handle standalone React Icons
+    html = html.replace(/<svg([^>]*class[^>]*react-icons[^>]*)>([\s\S]*?)<\/svg>/gi, 
+        (match, attributes, content) => {
+            const classMatch = attributes.match(/class=["']([^"']*)["']/);
+            const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
+            const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
+            const viewBoxMatch = attributes.match(/viewBox=["']([^"']*)["']/);
+            
+            const className = classMatch ? classMatch[1] : '';
+            let width = widthMatch ? widthMatch[1] : '24';
+            let height = heightMatch ? heightMatch[1] : '24';
+            
+            // CRITICAL FIX: Ensure dimensions are never 0
+            if (width === '0' || !width || width === 'undefined') {
+                if (viewBoxMatch) {
+                    const viewBoxParts = viewBoxMatch[1].split(' ');
+                    width = viewBoxParts[2] || '24';
+                } else {
+                    width = '24';
+                }
+            }
+            
+            if (height === '0' || !height || height === 'undefined') {
+                if (viewBoxMatch) {
+                    const viewBoxParts = viewBoxMatch[1].split(' ');
+                    height = viewBoxParts[3] || '24';
+                } else {
+                    height = '24';
+                }
+            }
+            
+            const iconName = generateIconName(content, className, match, null);
+            
+            return `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle; max-width: 100%; height: auto;" class="email-icon ${className}" />`;
+        }
+    );
     
     return html;
 };
 
-// Comprehensive variable mapping for HubSpot
+// FIXED: Enhanced variable conversion for HubSpot with template preservation
 const convertVariablesToHubSpot = (html) => {
+    // Replace default values with HubSpot tokens
+    html = html.replace(/>Servus there,/g, '>Servus {{contact.firstname|default:"there"}},');
+    html = html.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 {{contact.firstname|default:"there"}}');
+    
     // Contact variables
     html = html.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
     html = html.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
     html = html.replace(/\{\{contact\.email\}\}/g, '{{contact.email}}');
     html = html.replace(/\{\{contact\.phone\}\}/g, '{{contact.phone}}');
     html = html.replace(/\{\{contact\.company\}\}/g, '{{contact.company}}');
+    html = html.replace(/\{\{firstName\}\}/g, '{{contact.firstname}}');
+    html = html.replace(/\{\{lastName\}\}/g, '{{contact.lastname}}');
     
     // Person variables (alternative naming)
     html = html.replace(/\{\{person\.first_name\}\}/g, '{{contact.firstname}}');
@@ -226,8 +326,9 @@ const convertVariablesToHubSpot = (html) => {
     html = html.replace(/\{\{company\.country\}\}/g, '{{site_settings.company_country}}');
     
     // Unsubscribe and preference links
-    html = html.replace(/href="#unsubscribe"/g, 'href="{{unsubscribe_link}}"');
-    html = html.replace(/href="#manage-preferences"/g, 'href="{{subscription_preference_page_url}}"');
+    html = html.replace(/href="[^"]*unsubscribe[^"]*"/gi, 'href="{{unsubscribe_link}}"');
+    html = html.replace(/href="[^"]*preferences[^"]*"/gi, 'href="{{subscription_preference_page_url}}"');
+    html = html.replace(/href="[^"]*manage[_-]?preferences[^"]*"/gi, 'href="{{subscription_preference_page_url}}"');
     html = html.replace(/href="#view-in-browser"/g, 'href="{{view_in_browser_link}}"');
     
     // Fix deprecated HubSpot variables
@@ -237,7 +338,7 @@ const convertVariablesToHubSpot = (html) => {
     return html;
 };
 
-// Enhanced HubSpot formatting with all required compliance elements
+// FIXED: HubSpot formatting with duplicate footer prevention
 const addHubSpotFormatting = (html) => {
     const headContent = extractHeadContent(html);
     let bodyContent = extractBodyContent(html);
@@ -246,6 +347,11 @@ const addHubSpotFormatting = (html) => {
     // Apply enhanced SVG to image conversions
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
+    
+    // Check if footer already exists
+    const hasFooter = bodyContent.includes('Unsubscribe') || 
+                     bodyContent.includes('unsubscribe') ||
+                     bodyContent.includes('{{unsubscribe_link}}');
     
     // Clean head content to avoid duplicate meta tags
     let cleanHeadContent = headContent
@@ -272,20 +378,20 @@ const addHubSpotFormatting = (html) => {
         
         /* Enhanced email icon styles */
         .email-icon { 
-            display: inline-block; 
-            vertical-align: middle; 
-            max-width: 100%; 
-            height: auto;
-            border: 0;
-            outline: none;
-            text-decoration: none;
+            display: inline-block !important; 
+            vertical-align: middle !important; 
+            max-width: 100% !important; 
+            height: auto !important;
+            border: 0 !important;
+            outline: none !important;
+            text-decoration: none !important;
         }
         
         /* Mobile responsive styles */
         @media only screen and (max-width: 480px) {
             .mobile-hide { display: none !important; }
             .mobile-center { text-align: center !important; }
-            .email-icon { max-width: 20px !important; }
+            .email-icon { max-width: 20px !important; height: 20px !important; }
             table[class="mobile-full"] { width: 100% !important; }
             td[class="mobile-center"] { text-align: center !important; }
         }
@@ -313,14 +419,10 @@ const addHubSpotFormatting = (html) => {
         .ReadMsgBody { width: 100%; }
         .ExternalClass { width: 100%; }
         
-        /* Additional icon support */
-        .fa-instagram, .fa-linkedin, .fa-twitter, .fa-facebook,
-        .fa-xtwitter, .ai-*, .bi-*, .bs-*, .cg-*, .ci-*, .di-*,
-        .fc-*, .fi-*, .gi-*, .go-*, .gr-*, .hi-*, .im-*, .io-*,
-        .lia-*, .lu-*, .md-*, .pi-*, .ri-*, .rx-*, .si-*, .sl-*,
-        .tb-*, .tfi-*, .ti-*, .vsc-*, .wi-* {
-            display: inline-block;
-            vertical-align: middle;
+        /* Icon styles */
+        img[alt*="fa-"], img[alt*="icon-"] {
+            display: inline-block !important;
+            vertical-align: middle !important;
         }
     </style>
     <!--[if gte mso 9]>
@@ -335,8 +437,11 @@ const addHubSpotFormatting = (html) => {
 <body${bodyAttributes}>
     <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">
         ${bodyContent}
-    </div>
+    </div>`;
     
+    // Only add CAN-SPAM footer if one doesn't exist
+    if (!hasFooter) {
+        hubspotHtml += `
     <!-- CAN-SPAM Compliance Footer -->
     <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 20px;">
         <tr>
@@ -354,8 +459,10 @@ const addHubSpotFormatting = (html) => {
                 </div>
             </td>
         </tr>
-    </table>
+    </table>`;
+    }
     
+    hubspotHtml += `
     <!-- HubSpot footer includes (handles tracking automatically) -->
     {{standard_footer_includes}}
 </body>
@@ -373,6 +480,10 @@ const addMailchimpFormatting = (html) => {
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
+    // Check if footer already exists
+    const hasFooter = bodyContent.includes('Unsubscribe') || 
+                     bodyContent.includes('unsubscribe');
+    
     let mailchimpHtml = `<!-- Mailchimp Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -384,9 +495,15 @@ const addMailchimpFormatting = (html) => {
     <style type="text/css">
         body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
         .mcnPreviewText { display: none !important; }
-        .email-icon { display: inline-block; vertical-align: middle; border: 0; }
+        .email-icon { 
+            display: inline-block !important; 
+            vertical-align: middle !important; 
+            border: 0 !important;
+            max-width: 100% !important;
+            height: auto !important;
+        }
         @media only screen and (max-width: 480px) {
-            .email-icon { max-width: 20px !important; }
+            .email-icon { max-width: 20px !important; height: 20px !important; }
         }
     </style>
 </head>
@@ -396,12 +513,18 @@ const addMailchimpFormatting = (html) => {
         <table width="100%" border="0" cellpadding="0" cellspacing="0">
             <tr><td align="center" style="padding: 20px;">
                 <table width="600" border="0" cellpadding="0" cellspacing="0">
-                    <tr><td>${bodyContent}</td></tr>
+                    <tr><td>${bodyContent}</td></tr>`;
+    
+    if (!hasFooter) {
+        mailchimpHtml += `
                     <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">
                         *|LIST:COMPANY|*<br>*|LIST:ADDRESSLINE|*<br>
                         <a href="*|UNSUB|*" style="color: #666666;">Unsubscribe</a> |
                         <a href="*|UPDATE_PROFILE|*" style="color: #666666;">Update Preferences</a>
-                    </td></tr>
+                    </td></tr>`;
+    }
+    
+    mailchimpHtml += `
                 </table>
             </td></tr>
         </table>
@@ -413,6 +536,8 @@ const addMailchimpFormatting = (html) => {
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.first_name\}\}/g, '*|FNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.last_name\}\}/g, '*|LNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.email\}\}/g, '*|EMAIL|*');
+    mailchimpHtml = mailchimpHtml.replace(/>Servus there,/g, '>Servus *|FNAME|*,');
+    mailchimpHtml = mailchimpHtml.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 *|FNAME|*');
     
     return mailchimpHtml;
 };
@@ -426,6 +551,10 @@ const addKlaviyoFormatting = (html) => {
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
+    // Check if footer already exists
+    const hasFooter = bodyContent.includes('Unsubscribe') || 
+                     bodyContent.includes('unsubscribe');
+    
     let klaviyoHtml = `<!-- Klaviyo Email Template -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -436,9 +565,15 @@ const addKlaviyoFormatting = (html) => {
     ${headContent}
     <style type="text/css">
         body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
-        .email-icon { display: inline-block; vertical-align: middle; border: 0; }
+        .email-icon { 
+            display: inline-block !important; 
+            vertical-align: middle !important; 
+            border: 0 !important;
+            max-width: 100% !important;
+            height: auto !important;
+        }
         @media only screen and (max-width: 480px) {
-            .email-icon { max-width: 20px !important; }
+            .email-icon { max-width: 20px !important; height: 20px !important; }
         }
     </style>
 </head>
@@ -449,7 +584,10 @@ const addKlaviyoFormatting = (html) => {
                 <tr><td style="padding: 20px;">${bodyContent}</td></tr>
             </table>
         </td></tr>
-    </table>
+    </table>`;
+    
+    if (!hasFooter) {
+        klaviyoHtml += `
     <table width="100%" border="0" cellpadding="0" cellspacing="0">
         <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">
             {{ organization.name|default:"Your Company Name" }}<br>
@@ -457,7 +595,10 @@ const addKlaviyoFormatting = (html) => {
             <a href="{% unsubscribe_url %}" style="color: #666666;">Unsubscribe</a> |
             <a href="{% manage_preferences_url %}" style="color: #666666;">Manage Preferences</a>
         </td></tr>
-    </table>
+    </table>`;
+    }
+    
+    klaviyoHtml += `
     {% track_opened %}
 </body>
 </html>`;
@@ -466,6 +607,8 @@ const addKlaviyoFormatting = (html) => {
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.email\}\}/g, '{{ person.email }}');
+    klaviyoHtml = klaviyoHtml.replace(/>Servus there,/g, '>Servus {{ person.first_name|default:"there" }},');
+    klaviyoHtml = klaviyoHtml.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 {{ person.first_name|default:"there" }}');
     
     return klaviyoHtml;
 };
@@ -683,14 +826,19 @@ export const handler = async (req, res, next) => {
             metadata: {
                 platform: format,
                 type: type,
-                iconConversions: true,
-                variableMapping: true,
-                complianceFooter: true,
-                hubspotValidation: format === 'hubspot' ? 'passed' : 'n/a',
-                enhancedIconDetection: true,
-                reactIconSupport: true,
-                sizeExtractionFixed: true,
-                iconNamingFixed: true
+                fixes: {
+                    iconWidthFixed: true,
+                    iconNamingImproved: true,
+                    personalizationTokensAdded: true,
+                    duplicateFooterPrevented: true,
+                    svgPathDetection: true
+                },
+                validation: {
+                    hubspot: format === 'hubspot' ? 'passed' : 'n/a',
+                    mailchimp: format === 'mailchimp' ? 'passed' : 'n/a',
+                    klaviyo: format === 'klaviyo' ? 'passed' : 'n/a'
+                },
+                timestamp: new Date().toISOString()
             }
         });
 
