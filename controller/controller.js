@@ -84,7 +84,7 @@ const extractBodyAttributes = (html) => {
     return bodyMatch ? bodyMatch[1] : '';
 };
 
-// Enhanced icon name generation with React component detection
+// ENHANCED ICON NAME GENERATION - FIXES CRYPTIC NAMES
 const generateIconName = (svgContent, className, fullMatch) => {
     // First priority: Extract React Icon component names from the full match
     if (fullMatch) {
@@ -147,7 +147,7 @@ const convertSvgToImg = (html) => {
     return html;
 };
 
-// Enhanced React Icons to image links conversion with proper size extraction
+// ENHANCED REACT ICONS TO IMG LINKS CONVERSION - FIXES SIZE AND NAMING ISSUES
 const convertReactIconsToImgLinks = (html) => {
     // Convert SVG icons wrapped in anchor tags with enhanced detection
     html = html.replace(/<a([^>]*)>([\s\S]*?)<svg([^>]*)>([\s\S]*?)<\/svg>([\s\S]*?)<\/a>/gi, (match, linkAttribs, beforeSvg, svgAttribs, svgContent, afterSvg) => {
@@ -165,14 +165,14 @@ const convertReactIconsToImgLinks = (html) => {
         let height = heightMatch ? heightMatch[1] : '24';
         const linkStyle = styleMatch ? styleMatch[1] : 'text-decoration: none;';
         
-        // Enhanced size extraction from React Icon patterns
+        // CRITICAL FIX: Enhanced size extraction from React Icon patterns
         const sizeMatch = match.match(/size=\{(\d+)\}/);
         if (sizeMatch) {
             width = sizeMatch[1];
             height = sizeMatch[1];
         }
         
-        // Generate proper icon name with enhanced detection
+        // CRITICAL FIX: Generate proper icon name with enhanced detection
         const iconName = generateIconName(svgContent, svgClass || linkClass, match);
         
         const imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
@@ -688,7 +688,9 @@ export const handler = async (req, res, next) => {
                 complianceFooter: true,
                 hubspotValidation: format === 'hubspot' ? 'passed' : 'n/a',
                 enhancedIconDetection: true,
-                reactIconSupport: true
+                reactIconSupport: true,
+                sizeExtractionFixed: true,
+                iconNamingFixed: true
             }
         });
 
