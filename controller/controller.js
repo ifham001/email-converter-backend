@@ -116,9 +116,17 @@ const convertReactIconsToImgLinks = (html) => {
             const widthMatch = svgAttribs.match(/width=["']?(\d+)["']?/);
             const heightMatch = svgAttribs.match(/height=["']?(\d+)["']?/);
             
-            // Default to 24x24
-            const width = widthMatch ? widthMatch[1] : '24';
-            const height = heightMatch ? heightMatch[1] : '24';
+            // CRITICAL FIX: Ensure width/height are never 0
+            let width = widthMatch ? widthMatch[1] : '24';
+            let height = heightMatch ? heightMatch[1] : '24';
+            
+            // Force 24 if width is 0 or invalid
+            if (!width || width === '0' || width === 'undefined' || width === 'null') {
+                width = '24';
+            }
+            if (!height || height === '0' || height === 'undefined' || height === 'null') {
+                height = '24';
+            }
             
             // Return anchor with simple img inside
             return `<a${linkAttribs}>` +
@@ -134,8 +142,17 @@ const convertReactIconsToImgLinks = (html) => {
         const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
         const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
         
-        const width = widthMatch ? widthMatch[1] : '24';
-        const height = heightMatch ? heightMatch[1] : '24';
+        // CRITICAL FIX: Ensure width/height are never 0
+        let width = widthMatch ? widthMatch[1] : '24';
+        let height = heightMatch ? heightMatch[1] : '24';
+        
+        // Force 24 if width is 0 or invalid
+        if (!width || width === '0' || width === 'undefined' || width === 'null') {
+            width = '24';
+        }
+        if (!height || height === '0' || height === 'undefined' || height === 'null') {
+            height = '24';
+        }
         
         return `<img src="https://placeholder.com/icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />`;
     });
@@ -145,8 +162,11 @@ const convertReactIconsToImgLinks = (html) => {
 
 // FIXED: Enhanced variable conversion for HubSpot with template preservation
 const convertVariablesToHubSpot = (html) => {
-    // Replace default values with HubSpot tokens
+    // Replace "Servus there" and similar greetings with HubSpot tokens
+    // Handle cases with HTML comments in between
+    html = html.replace(/>Servus <!-- -->there<!-- -->,/g, '>Servus {{contact.firstname|default:"there"}},');
     html = html.replace(/>Servus there,/g, '>Servus {{contact.firstname|default:"there"}},');
+    html = html.replace(/\b(Hi|Hello|Dear|Hey) <!-- -->there<!-- -->\b/gi, '$1 {{contact.firstname|default:"there"}}');
     html = html.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 {{contact.firstname|default:"there"}}');
     
     // Contact variables
