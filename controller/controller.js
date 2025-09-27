@@ -206,7 +206,7 @@ const addHubSpotFormatting = (html) => {
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
-    // Apply inline styles to content
+    // Apply inline styles to content (keeping body styling)
     bodyContent = inlineStyles(bodyContent, '');
     
     // Build HubSpot email module with required includes
