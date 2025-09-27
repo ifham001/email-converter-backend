@@ -84,257 +84,61 @@ const extractBodyAttributes = (html) => {
     return bodyMatch ? bodyMatch[1] : '';
 };
 
-// FIXED: Icon pattern detection for Font Awesome 6 actual SVG paths
-const detectIconFromSvgPath = (svgContent) => {
-    // Font Awesome 6 actual SVG path signatures
-    const iconPatterns = {
-        'fa-instagram': [
-            /M224\.1 141c-63\.6/,  // FA6 Instagram path start
-            /M224.1 141/,
-            /448 224s200.6 0 224/,
-            /instagram/i
-        ],
-        'fa-linkedin': [
-            /M416 32H31\.9C14\.3/,  // FA6 LinkedIn path start
-            /M100\.28 448H7\.4V/,
-            /416 32H31.9/,
-            /linkedin/i
-        ],
-        'fa-x-twitter': [
-            /M389\.2 48h70\.6L305\.6/,  // FA6 X/Twitter path start
-            /389.2 48h70.6/,
-            /twitter|x\.com/i
-        ],
-        'fa-facebook': [
-            /M512 256C512 114\.6/,  // FA6 Facebook path start
-            /M504 256C504 119/,
-            /279\.04 192h-62\.34/,
-            /facebook/i
-        ]
-    };
-    
-    // Also check for any d= attribute content
-    const dMatch = svgContent.match(/\bd="([^"]*)"/);
-    if (dMatch) {
-        const pathData = dMatch[1];
-        
-        // Additional specific path checks
-        if (pathData.includes('224.1 141') || pathData.includes('224 141')) {
-            return 'fa-instagram';
-        }
-        if (pathData.includes('416 32H31.9') || pathData.includes('100.28 448')) {
-            return 'fa-linkedin';
-        }
-        if (pathData.includes('389.2 48') || pathData.includes('389 48')) {
-            return 'fa-x-twitter';
-        }
-        if (pathData.includes('512 256C512') || pathData.includes('504 256C504')) {
-            return 'fa-facebook';
-        }
-    }
-    
-    // Check patterns
-    for (const [iconName, patterns] of Object.entries(iconPatterns)) {
-        for (const pattern of patterns) {
-            if (pattern.test(svgContent)) {
-                return iconName;
-            }
-        }
-    }
-    
-    return null;
-};
-
-// FIXED: Enhanced icon name generation with SHORTER names to avoid truncation
-const generateIconName = (svgContent, className, fullMatch, href) => {
-    // Debug logging to understand what we're working with
-    console.log('Icon detection debug:', {
-        hasHref: !!href,
-        href: href || 'none',
-        hasClassName: !!className,
-        svgContentLength: svgContent ? svgContent.length : 0
-    });
-    
-    // Priority 1: Check href for social media domains - USE SHORT NAMES
-    if (href) {
-        const hrefLower = href.toLowerCase();
-        if (hrefLower.includes('instagram.com')) return 'instagram';
-        if (hrefLower.includes('linkedin.com')) return 'linkedin';
-        if (hrefLower.includes('twitter.com') || hrefLower.includes('x.com')) return 'twitter';
-        if (hrefLower.includes('facebook.com')) return 'facebook';
-    }
-    
-    // Priority 2: Try to detect from SVG path content
-    const detectedIcon = detectIconFromSvgPath(svgContent);
-    if (detectedIcon) {
-        // Remove 'fa-' prefix to avoid truncation
-        return detectedIcon.replace('fa-', '');
-    }
-    
-    // Priority 3: Check the full match for any identifying information
-    if (fullMatch) {
-        const fullMatchLower = fullMatch.toLowerCase();
-        if (fullMatchLower.includes('instagram')) return 'instagram';
-        if (fullMatchLower.includes('linkedin')) return 'linkedin';
-        if (fullMatchLower.includes('twitter') || fullMatchLower.includes('x.com')) return 'twitter';
-        if (fullMatchLower.includes('facebook')) return 'facebook';
-    }
-    
-    // Priority 4: Try to get from className
-    if (className) {
-        const classLower = className.toLowerCase();
-        if (classLower.includes('instagram')) return 'instagram';
-        if (classLower.includes('linkedin')) return 'linkedin';
-        if (classLower.includes('twitter')) return 'twitter';
-        if (classLower.includes('facebook')) return 'facebook';
-    }
-    
-    // Priority 5: Try to extract from viewBox or other attributes
-    const viewBoxMatch = svgContent && svgContent.match(/viewBox=["']0 0 (\d+) (\d+)["']/);
-    if (viewBoxMatch) {
-        const [_, width, height] = viewBoxMatch;
-        // Font Awesome 6 icons often have specific viewBox dimensions
-        if (width === '448' && height === '512') return 'instagram';
-        if (width === '512' && height === '512') return 'facebook';
-    }
-    
-    // Last resort: Generate a more readable fallback name
-    if (svgContent) {
-        const pathMatch = svgContent.match(/d="([^"]*)/);
-        if (pathMatch) {
-            // Try to create a more meaningful hash from the path
-            const pathStart = pathMatch[1].slice(0, 30);
-            // Check for specific path starts that are unique to certain icons
-            if (pathStart.includes('M224')) return 'instagram';
-            if (pathStart.includes('M416')) return 'linkedin';
-            if (pathStart.includes('M389')) return 'twitter';
-            if (pathStart.includes('M512') || pathStart.includes('M504')) return 'facebook';
-            
-            // Otherwise create a short hash
-            const pathHash = pathMatch[1].slice(0, 6).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-            return `i${pathHash}`;
-        }
-    }
-    
-    return 'icon';
-};
-
-// FIXED: Enhanced SVG to image conversion with proper size handling
+// SIMPLIFIED: Convert SVG to simple IMG tag with static placeholder
 const convertSvgToImg = (html) => {
-    html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes, content) => {
-        const classMatch = attributes.match(/class=["']([^"']*)["']/);
+    // Just replace all SVGs with a simple placeholder image
+    html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes) => {
+        // Extract width and height if available
         const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
         const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
-        const styleMatch = attributes.match(/style=["']([^"']*)["']/);
-        const viewBoxMatch = attributes.match(/viewBox=["']([^"']*)["']/);
         
-        const className = classMatch ? classMatch[1] : '';
-        let width = widthMatch ? widthMatch[1] : '24';
-        let height = heightMatch ? heightMatch[1] : '24';
-        const style = styleMatch ? styleMatch[1] : '';
+        // Default to 24x24 if not specified
+        const width = widthMatch ? widthMatch[1] : '24';
+        const height = heightMatch ? heightMatch[1] : '24';
         
-        // CRITICAL FIX: Ensure width is never 0
-        if (width === '0' || !width || width === 'undefined') {
-            width = '24';
-        }
-        if (height === '0' || !height || height === 'undefined') {
-            height = '24';
-        }
-        
-        // If viewBox exists but no width/height, extract from viewBox
-        if (viewBoxMatch && (!widthMatch || !heightMatch)) {
-            const viewBoxParts = viewBoxMatch[1].split(' ');
-            if (viewBoxParts.length >= 4) {
-                width = width === '24' ? viewBoxParts[2] : width;
-                height = height === '24' ? viewBoxParts[3] : height;
-            }
-        }
-        
-        const iconName = generateIconName(content, className, match, null);
-        
-        let imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
-        if (style) {
-            imgStyle += ' ' + style;
-        }
-        
-        return `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="${imgStyle}" class="email-icon ${className}" />`;
+        // Use a static placeholder PNG that your team's compiler will replace
+        return `<img src="https://placeholder.com/icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />`;
     });
     
     return html;
 };
 
-// FIXED: React Icons to IMG links conversion with proper href passing and size detection
+// SIMPLIFIED: Handle SVGs inside anchor tags
 const convertReactIconsToImgLinks = (html) => {
-    // First pass: Handle icons within anchor tags - CRITICAL: Pass href to generateIconName
+    // Handle SVGs within anchor tags - preserve the anchor, replace SVG with img
     html = html.replace(/<a([^>]*)>([\s\S]*?)<svg([^>]*)>([\s\S]*?)<\/svg>([\s\S]*?)<\/a>/gi, 
         (match, linkAttribs, beforeSvg, svgAttribs, svgContent, afterSvg) => {
+            // Extract href
             const hrefMatch = linkAttribs.match(/href=["']([^"']*)["']/);
-            const linkClassMatch = linkAttribs.match(/class=["']([^"']*)["']/);
-            const svgClassMatch = svgAttribs.match(/class=["']([^"']*)["']/);
+            const href = hrefMatch ? hrefMatch[1] : '#';
+            
+            // Extract SVG dimensions
             const widthMatch = svgAttribs.match(/width=["']?(\d+)["']?/);
             const heightMatch = svgAttribs.match(/height=["']?(\d+)["']?/);
-            const viewBoxMatch = svgAttribs.match(/viewBox=["']([^"']*)["']/);
-            const styleMatch = linkAttribs.match(/style=["']([^"']*)["']/);
             
-            const href = hrefMatch ? hrefMatch[1] : '#';
-            const linkClass = linkClassMatch ? linkClassMatch[1] : '';
-            const svgClass = svgClassMatch ? svgClassMatch[1] : '';
-            let width = widthMatch ? widthMatch[1] : '24';
-            let height = heightMatch ? heightMatch[1] : '24';
-            const linkStyle = styleMatch ? styleMatch[1] : 'text-decoration: none;';
+            // Default to 24x24
+            const width = widthMatch ? widthMatch[1] : '24';
+            const height = heightMatch ? heightMatch[1] : '24';
             
-            // CRITICAL FIX: Force proper dimensions
-            if (!width || width === '0' || width === 'undefined' || width === 'null') {
-                width = '24';
-            }
-            if (!height || height === '0' || height === 'undefined' || height === 'null') {
-                height = '24';
-            }
-            
-            // CRITICAL: Pass href to generateIconName for proper detection
-            const iconName = generateIconName(svgContent, svgClass || linkClass, match, href);
-            
-            // Log for debugging
-            console.log(`Converting icon: href=${href}, name=${iconName}, width=${width}, height=${height}`);
-            
-            const imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
-            
-            return `<a href="${href}" style="${linkStyle}" class="${linkClass}">` +
+            // Return anchor with simple img inside
+            return `<a${linkAttribs}>` +
                    `${beforeSvg}` +
-                   `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="${imgStyle}" class="email-icon ${svgClass}" />` +
+                   `<img src="https://placeholder.com/icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />` +
                    `${afterSvg}` +
                    `</a>`;
         }
     );
     
-    // Second pass: Handle standalone React Icons (not in links)
-    html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, 
-        (match, attributes, content) => {
-            // Skip if already processed (has img tag nearby)
-            if (match.includes('email-icon')) return match;
-            
-            const classMatch = attributes.match(/class=["']([^"']*)["']/);
-            const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
-            const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
-            const viewBoxMatch = attributes.match(/viewBox=["']([^"']*)["']/);
-            
-            const className = classMatch ? classMatch[1] : '';
-            let width = widthMatch ? widthMatch[1] : '24';
-            let height = heightMatch ? heightMatch[1] : '24';
-            
-            // CRITICAL FIX: Force proper dimensions
-            if (!width || width === '0' || width === 'undefined' || width === 'null') {
-                width = '24';
-            }
-            if (!height || height === '0' || height === 'undefined' || height === 'null') {
-                height = '24';
-            }
-            
-            const iconName = generateIconName(content, className, match, null);
-            
-            return `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle; max-width: 100%; height: auto;" class="email-icon ${className}" />`;
-        }
-    );
+    // Handle any remaining standalone SVGs
+    html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes) => {
+        const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
+        const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
+        
+        const width = widthMatch ? widthMatch[1] : '24';
+        const height = heightMatch ? heightMatch[1] : '24';
+        
+        return `<img src="https://placeholder.com/icon.png" alt="icon" width="${width}" height="${height}" style="display: inline-block; vertical-align: middle;" />`;
+    });
     
     return html;
 };
