@@ -84,116 +84,79 @@ const extractBodyAttributes = (html) => {
     return bodyMatch ? bodyMatch[1] : '';
 };
 
-// Improved SVG to Image conversion functions
-const generateIconName = (svgContent, className) => {
-    if (className) {
-        return className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-    }
-    
-    // Try to extract icon name from SVG content or path
-    const pathMatch = svgContent.match(/d="([^"]*)/);
-    if (pathMatch) {
-        // Create a simple hash from the path for consistent naming
-        const pathHash = pathMatch[1].slice(0, 20).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        return `icon-${pathHash}`;
-    }
-    
-    return 'default-icon';
-};
-
+// SVG to Image conversion functions
 const convertSvgToImg = (html) => {
-    // Convert standalone SVG elements
-    html = html.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (match, attributes, content) => {
-        const classMatch = attributes.match(/class=["']([^"']*)["']/);
-        const widthMatch = attributes.match(/width=["']?(\d+)["']?/);
-        const heightMatch = attributes.match(/height=["']?(\d+)["']?/);
-        const styleMatch = attributes.match(/style=["']([^"']*)["']/);
-        
-        const className = classMatch ? classMatch[1] : '';
+    // Convert SVG elements with class names
+    html = html.replace(/<svg[^>]*class="([^"]*)"[^>]*>[\s\S]*?<\/svg>/gi, (match, className) => {
+        const widthMatch = match.match(/width="?(\d+)"?/);
+        const heightMatch = match.match(/height="?(\d+)"?/);
         const width = widthMatch ? widthMatch[1] : '24';
         const height = heightMatch ? heightMatch[1] : '24';
-        const style = styleMatch ? styleMatch[1] : '';
+        const iconName = className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
         
-        const iconName = generateIconName(content, className);
+        return '<img src="/images/icons/' + iconName + '.png" alt="' + iconName + '" width="' + width + '" height="' + height + '" style="display: inline-block; vertical-align: middle;" class="icon-img" />';
+    });
+    
+    // Convert SVG elements without class names
+    html = html.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, (match) => {
+        const widthMatch = match.match(/width="?(\d+)"?/);
+        const heightMatch = match.match(/height="?(\d+)"?/);
+        const width = widthMatch ? widthMatch[1] : '24';
+        const height = heightMatch ? heightMatch[1] : '24';
         
-        // Build image style
-        let imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
-        if (style) {
-            imgStyle += ' ' + style;
-        }
-        
-        return `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="${imgStyle}" class="email-icon ${className}" />`;
+        return '<img src="/images/icons/default-icon.png" alt="icon" width="' + width + '" height="' + height + '" style="display: inline-block; vertical-align: middle;" class="icon-img" />';
     });
     
     return html;
 };
 
 const convertReactIconsToImgLinks = (html) => {
-    // Convert SVG icons wrapped in anchor tags
-    html = html.replace(/<a([^>]*)>([\s\S]*?)<svg([^>]*)>([\s\S]*?)<\/svg>([\s\S]*?)<\/a>/gi, (match, linkAttribs, beforeSvg, svgAttribs, svgContent, afterSvg) => {
-        const hrefMatch = linkAttribs.match(/href=["']([^"']*)["']/);
-        const linkClassMatch = linkAttribs.match(/class=["']([^"']*)["']/);
-        const svgClassMatch = svgAttribs.match(/class=["']([^"']*)["']/);
-        const widthMatch = svgAttribs.match(/width=["']?(\d+)["']?/);
-        const heightMatch = svgAttribs.match(/height=["']?(\d+)["']?/);
-        const styleMatch = linkAttribs.match(/style=["']([^"']*)["']/);
-        
+    html = html.replace(/<a[^>]*>[\s\S]*?<svg[^>]*>[\s\S]*?<\/svg>[\s\S]*?<\/a>/gi, (match) => {
+        const hrefMatch = match.match(/href="([^"]*)"/);
         const href = hrefMatch ? hrefMatch[1] : '#';
-        const linkClass = linkClassMatch ? linkClassMatch[1] : '';
-        const svgClass = svgClassMatch ? svgClassMatch[1] : '';
+        const classMatch = match.match(/class="([^"]*)"/);
+        const className = classMatch ? classMatch[1] : '';
+        const svgMatch = match.match(/<svg[^>]*>/);
+        const widthMatch = svgMatch ? svgMatch[0].match(/width="?(\d+)"?/) : null;
+        const heightMatch = svgMatch ? svgMatch[0].match(/height="?(\d+)"?/) : null;
         const width = widthMatch ? widthMatch[1] : '24';
         const height = heightMatch ? heightMatch[1] : '24';
-        const linkStyle = styleMatch ? styleMatch[1] : 'text-decoration: none;';
+        const iconName = className ? className.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : 'link-icon';
         
-        const iconName = generateIconName(svgContent, svgClass || linkClass);
-        
-        const imgStyle = 'display: inline-block; vertical-align: middle; max-width: 100%; height: auto;';
-        
-        return `<a href="${href}" style="${linkStyle}" class="${linkClass}">` +
-               `${beforeSvg}` +
-               `<img src="https://cdn.example.com/icons/${iconName}.png" alt="${iconName}" width="${width}" height="${height}" style="${imgStyle}" class="email-icon ${svgClass}" />` +
-               `${afterSvg}` +
-               `</a>`;
+        return '<a href="' + href + '" style="text-decoration: none;" class="' + className + '">' +
+               '<img src="/images/icons/' + iconName + '.png" alt="' + iconName + '" width="' + width + '" height="' + height + '" style="display: inline-block; vertical-align: middle;" class="icon-img" />' +
+               '</a>';
     });
     
     return html;
 };
 
-// Enhanced variable mapping for HubSpot
+// Variable mapping for HubSpot
 const convertVariablesToHubSpot = (html) => {
     // Contact variables
     html = html.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
     html = html.replace(/\{\{contact\.last_name\}\}/g, '{{contact.lastname}}');
     html = html.replace(/\{\{contact\.email\}\}/g, '{{contact.email}}');
-    html = html.replace(/\{\{contact\.phone\}\}/g, '{{contact.phone}}');
-    html = html.replace(/\{\{contact\.company\}\}/g, '{{contact.company}}');
-    
-    // Person variables (alternative naming)
     html = html.replace(/\{\{person\.first_name\}\}/g, '{{contact.firstname}}');
     html = html.replace(/\{\{person\.last_name\}\}/g, '{{contact.lastname}}');
     html = html.replace(/\{\{person\.email\}\}/g, '{{contact.email}}');
     
-    // Company/Organization variables
+    // Company variables for CAN-SPAM compliance
     html = html.replace(/\{\{company\.name\}\}/g, '{{site_settings.company_name}}');
     html = html.replace(/\{\{organization\.name\}\}/g, '{{site_settings.company_name}}');
     html = html.replace(/\{\{company\.address\}\}/g, '{{site_settings.company_street_address_1}}');
     html = html.replace(/\{\{company\.city\}\}/g, '{{site_settings.company_city}}');
     html = html.replace(/\{\{company\.state\}\}/g, '{{site_settings.company_state}}');
     html = html.replace(/\{\{company\.zip\}\}/g, '{{site_settings.company_zip}}');
-    html = html.replace(/\{\{company\.country\}\}/g, '{{site_settings.company_country}}');
     
-    // Unsubscribe and preference links
+    // Unsubscribe links
     html = html.replace(/href="#unsubscribe"/g, 'href="{{unsubscribe_link}}"');
     html = html.replace(/href="#manage-preferences"/g, 'href="{{subscription_preference_page_url}}"');
-    html = html.replace(/href="#view-in-browser"/g, 'href="{{view_in_browser_link}}"');
-    
-    // Update deprecated HubSpot variables
-    html = html.replace(/site_settings\.company_domain/g, 'brand_settings.logo.link');
     
     return html;
 };
 
-// Enhanced HubSpot formatting with required tags
+// Platform formatting functions
 const addHubSpotFormatting = (html) => {
     const headContent = extractHeadContent(html);
     let bodyContent = extractBodyContent(html);
@@ -203,115 +166,56 @@ const addHubSpotFormatting = (html) => {
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
-    // Clean head content to avoid duplicate meta tags
-    let cleanHeadContent = headContent
-        .replace(/<meta[^>]*charset[^>]*>/gi, '')
-        .replace(/<meta[^>]*viewport[^>]*>/gi, '')
-        .replace(/<meta[^>]*http-equiv="X-UA-Compatible"[^>]*>/gi, '')
-        .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
-    
-    // Build HubSpot template with all required elements
-    let hubspotHtml = `<!-- HubSpot Email Template -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>{{content.html_title}}</title>
-    {{standard_header_includes}}
-    ${cleanHeadContent}
-    <style type="text/css">
-        /* HubSpot specific styles */
-        .hs_cos_wrapper_type_module { width: 100% !important; }
-        .hs_cos_wrapper { display: block !important; }
-        
-        /* Email icon styles */
-        .email-icon { 
-            display: inline-block; 
-            vertical-align: middle; 
-            max-width: 100%; 
-            height: auto;
-            border: 0;
-            outline: none;
-            text-decoration: none;
-        }
-        
-        /* Mobile responsive styles */
-        @media only screen and (max-width: 480px) {
-            .mobile-hide { display: none !important; }
-            .mobile-center { text-align: center !important; }
-            .email-icon { max-width: 20px !important; }
-            table[class="mobile-full"] { width: 100% !important; }
-            td[class="mobile-center"] { text-align: center !important; }
-        }
-        
-        /* Email client compatibility */
-        .ExternalClass { width: 100%; }
-        .ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div {
-            line-height: 100%;
-        }
-        
-        img { 
-            border: 0; 
-            outline: none; 
-            text-decoration: none; 
-            -ms-interpolation-mode: bicubic; 
-        }
-        
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            .email-icon { opacity: 0.8; }
-        }
-        
-        /* Outlook specific */
-        table { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-        .ReadMsgBody { width: 100%; }
-        .ExternalClass { width: 100%; }
-    </style>
-    <!--[if gte mso 9]>
-    <xml>
-        <o:OfficeDocumentSettings>
-            <o:AllowPNG/>
-            <o:PixelsPerInch>96</o:PixelsPerInch>
-        </o:OfficeDocumentSettings>
-    </xml>
-    <![endif]-->
-</head>
-<body${bodyAttributes}>
-    <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">
-        ${bodyContent}
-    </div>
-    
-    <!-- CAN-SPAM Compliance Footer -->
-    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 20px;">
-        <tr>
-            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666; line-height: 18px;">
-                <div style="margin-bottom: 10px;">
-                    {{site_settings.company_name}}<br>
-                    {{site_settings.company_street_address_1}}<br>
-                    {{site_settings.company_city}}, {{site_settings.company_state}} {{site_settings.company_zip}}
-                </div>
-                <div style="margin-top: 15px;">
-                    {{unsubscribe_anchor}}<br>
-                    <a href="{{unsubscribe_link}}" style="color: #666666; text-decoration: underline;">Unsubscribe from this list</a> |
-                    <a href="{{unsubscribe_link_all}}" style="color: #666666; text-decoration: underline;">Unsubscribe from all emails</a> |
-                    <a href="{{subscription_preference_page_url}}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>
-                </div>
-            </td>
-        </tr>
-    </table>
-    
-    <!-- HubSpot tracking and analytics -->
-    {{email_tracking_pixel}}
-    {{standard_footer_includes}}
-</body>
-</html>`;
+    // Build HubSpot template
+    let hubspotHtml = '<!-- HubSpot Email Template -->\n';
+    hubspotHtml += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
+    hubspotHtml += '<html xmlns="http://www.w3.org/1999/xhtml">\n';
+    hubspotHtml += '<head>\n';
+    hubspotHtml += '    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n';
+    hubspotHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n';
+    hubspotHtml += '    <meta http-equiv="X-UA-Compatible" content="IE=edge" />\n';
+    hubspotHtml += '    <title>{{content.html_title}}</title>\n';
+    hubspotHtml += '    {{standard_header_includes}}\n';
+    hubspotHtml += '    ' + headContent + '\n';
+    hubspotHtml += '    <style type="text/css">\n';
+    hubspotHtml += '        .hs_cos_wrapper_type_module { width: 100% !important; }\n';
+    hubspotHtml += '        .hs_cos_wrapper { display: block !important; }\n';
+    hubspotHtml += '        .icon-img { display: inline-block; vertical-align: middle; max-width: 100%; height: auto; }\n';
+    hubspotHtml += '        @media only screen and (max-width: 480px) {\n';
+    hubspotHtml += '            .mobile-hide { display: none !important; }\n';
+    hubspotHtml += '            .mobile-center { text-align: center !important; }\n';
+    hubspotHtml += '            .icon-img { max-width: 20px !important; }\n';
+    hubspotHtml += '        }\n';
+    hubspotHtml += '        .ExternalClass { width: 100%; }\n';
+    hubspotHtml += '        img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }\n';
+    hubspotHtml += '    </style>\n';
+    hubspotHtml += '</head>\n';
+    hubspotHtml += '<body' + bodyAttributes + '>\n';
+    hubspotHtml += '    <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">\n';
+    hubspotHtml += '        ' + bodyContent + '\n';
+    hubspotHtml += '    </div>\n';
+    hubspotHtml += '    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">\n';
+    hubspotHtml += '        <tr>\n';
+    hubspotHtml += '            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">\n';
+    hubspotHtml += '                {{site_settings.company_name}}<br>\n';
+    hubspotHtml += '                {{site_settings.company_street_address_1}}<br>\n';
+    hubspotHtml += '                {{site_settings.company_city}}, {{site_settings.company_state}} {{site_settings.company_zip}}<br>\n';
+    hubspotHtml += '                <br>\n';
+    hubspotHtml += '                {{unsubscribe_anchor}}<br>\n';
+    hubspotHtml += '                <a href="{{unsubscribe_link}}" style="color: #666666; text-decoration: underline;">Unsubscribe from this list</a> |\n';
+    hubspotHtml += '                <a href="{{unsubscribe_link_all}}" style="color: #666666; text-decoration: underline;">Unsubscribe from all emails</a> |\n';
+    hubspotHtml += '                <a href="{{subscription_preference_page_url}}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>\n';
+    hubspotHtml += '            </td>\n';
+    hubspotHtml += '        </tr>\n';
+    hubspotHtml += '    </table>\n';
+    hubspotHtml += '    {{email_tracking_pixel}}\n';
+    hubspotHtml += '    {{standard_footer_includes}}\n';
+    hubspotHtml += '</body>\n';
+    hubspotHtml += '</html>';
     
     return convertVariablesToHubSpot(hubspotHtml);
 };
 
-// Enhanced Mailchimp formatting
 const addMailchimpFormatting = (html) => {
     const headContent = extractHeadContent(html);
     let bodyContent = extractBodyContent(html);
@@ -320,43 +224,43 @@ const addMailchimpFormatting = (html) => {
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
-    let mailchimpHtml = `<!-- Mailchimp Email Template -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>*|MC:SUBJECT|*</title>
-    ${headContent}
-    <style type="text/css">
-        body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
-        .mcnPreviewText { display: none !important; }
-        .email-icon { display: inline-block; vertical-align: middle; border: 0; }
-        @media only screen and (max-width: 480px) {
-            .email-icon { max-width: 20px !important; }
-        }
-    </style>
-</head>
-<body${bodyAttributes}>
-    <span class="mcnPreviewText" style="display:none;">*|MC:PREVIEW_TEXT|*</span>
-    <center>
-        <table width="100%" border="0" cellpadding="0" cellspacing="0">
-            <tr><td align="center" style="padding: 20px;">
-                <table width="600" border="0" cellpadding="0" cellspacing="0">
-                    <tr><td>${bodyContent}</td></tr>
-                    <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">
-                        *|LIST:COMPANY|*<br>*|LIST:ADDRESSLINE|*<br>
-                        <a href="*|UNSUB|*" style="color: #666666;">Unsubscribe</a> |
-                        <a href="*|UPDATE_PROFILE|*" style="color: #666666;">Update Preferences</a>
-                    </td></tr>
-                </table>
-            </td></tr>
-        </table>
-    </center>
-</body>
-</html>`;
+    let mailchimpHtml = '<!-- Mailchimp Email Template -->\n';
+    mailchimpHtml += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
+    mailchimpHtml += '<html xmlns="http://www.w3.org/1999/xhtml">\n';
+    mailchimpHtml += '<head>\n';
+    mailchimpHtml += '    <meta charset="UTF-8">\n';
+    mailchimpHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1">\n';
+    mailchimpHtml += '    <title>*|MC:SUBJECT|*</title>\n';
+    mailchimpHtml += '    ' + headContent + '\n';
+    mailchimpHtml += '    <style type="text/css">\n';
+    mailchimpHtml += '        body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }\n';
+    mailchimpHtml += '        .mcnPreviewText { display: none !important; }\n';
+    mailchimpHtml += '        .icon-img { display: inline-block; vertical-align: middle; }\n';
+    mailchimpHtml += '        @media only screen and (max-width: 480px) {\n';
+    mailchimpHtml += '            .icon-img { max-width: 20px !important; }\n';
+    mailchimpHtml += '        }\n';
+    mailchimpHtml += '    </style>\n';
+    mailchimpHtml += '</head>\n';
+    mailchimpHtml += '<body' + bodyAttributes + '>\n';
+    mailchimpHtml += '    <span class="mcnPreviewText" style="display:none;">*|MC:PREVIEW_TEXT|*</span>\n';
+    mailchimpHtml += '    <center>\n';
+    mailchimpHtml += '        <table width="100%" border="0" cellpadding="0" cellspacing="0">\n';
+    mailchimpHtml += '            <tr><td align="center" style="padding: 20px;">\n';
+    mailchimpHtml += '                <table width="600" border="0" cellpadding="0" cellspacing="0">\n';
+    mailchimpHtml += '                    <tr><td>' + bodyContent + '</td></tr>\n';
+    mailchimpHtml += '                    <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">\n';
+    mailchimpHtml += '                        *|LIST:COMPANY|*<br>*|LIST:ADDRESSLINE|*<br>\n';
+    mailchimpHtml += '                        <a href="*|UNSUB|*" style="color: #666666;">Unsubscribe</a> |\n';
+    mailchimpHtml += '                        <a href="*|UPDATE_PROFILE|*" style="color: #666666;">Update Preferences</a>\n';
+    mailchimpHtml += '                    </td></tr>\n';
+    mailchimpHtml += '                </table>\n';
+    mailchimpHtml += '            </td></tr>\n';
+    mailchimpHtml += '        </table>\n';
+    mailchimpHtml += '    </center>\n';
+    mailchimpHtml += '</body>\n';
+    mailchimpHtml += '</html>';
     
-    // Replace variables with Mailchimp format
+    // Replace variables
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.first_name\}\}/g, '*|FNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.last_name\}\}/g, '*|LNAME|*');
     mailchimpHtml = mailchimpHtml.replace(/\{\{contact\.email\}\}/g, '*|EMAIL|*');
@@ -364,7 +268,6 @@ const addMailchimpFormatting = (html) => {
     return mailchimpHtml;
 };
 
-// Enhanced Klaviyo formatting
 const addKlaviyoFormatting = (html) => {
     const headContent = extractHeadContent(html);
     let bodyContent = extractBodyContent(html);
@@ -373,43 +276,43 @@ const addKlaviyoFormatting = (html) => {
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
-    let klaviyoHtml = `<!-- Klaviyo Email Template -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>{% if event.subject %}{{ event.subject }}{% else %}Email Update{% endif %}</title>
-    ${headContent}
-    <style type="text/css">
-        body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
-        .email-icon { display: inline-block; vertical-align: middle; border: 0; }
-        @media only screen and (max-width: 480px) {
-            .email-icon { max-width: 20px !important; }
-        }
-    </style>
-</head>
-<body${bodyAttributes}>
-    <table width="100%" border="0" cellpadding="0" cellspacing="0">
-        <tr><td align="center">
-            <table width="600" border="0" cellpadding="0" cellspacing="0">
-                <tr><td style="padding: 20px;">${bodyContent}</td></tr>
-            </table>
-        </td></tr>
-    </table>
-    <table width="100%" border="0" cellpadding="0" cellspacing="0">
-        <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">
-            {{ organization.name|default:"Your Company Name" }}<br>
-            {% if organization.address %}{{ organization.address }}{% endif %}<br>
-            <a href="{% unsubscribe_url %}" style="color: #666666;">Unsubscribe</a> |
-            <a href="{% manage_preferences_url %}" style="color: #666666;">Manage Preferences</a>
-        </td></tr>
-    </table>
-    {% track_opened %}
-</body>
-</html>`;
+    let klaviyoHtml = '<!-- Klaviyo Email Template -->\n';
+    klaviyoHtml += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
+    klaviyoHtml += '<html xmlns="http://www.w3.org/1999/xhtml">\n';
+    klaviyoHtml += '<head>\n';
+    klaviyoHtml += '    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n';
+    klaviyoHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>\n';
+    klaviyoHtml += '    <title>{% if event.subject %}{{ event.subject }}{% else %}Email Update{% endif %}</title>\n';
+    klaviyoHtml += '    ' + headContent + '\n';
+    klaviyoHtml += '    <style type="text/css">\n';
+    klaviyoHtml += '        body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }\n';
+    klaviyoHtml += '        .icon-img { display: inline-block; vertical-align: middle; }\n';
+    klaviyoHtml += '        @media only screen and (max-width: 480px) {\n';
+    klaviyoHtml += '            .icon-img { max-width: 20px !important; }\n';
+    klaviyoHtml += '        }\n';
+    klaviyoHtml += '    </style>\n';
+    klaviyoHtml += '</head>\n';
+    klaviyoHtml += '<body' + bodyAttributes + '>\n';
+    klaviyoHtml += '    <table width="100%" border="0" cellpadding="0" cellspacing="0">\n';
+    klaviyoHtml += '        <tr><td align="center">\n';
+    klaviyoHtml += '            <table width="600" border="0" cellpadding="0" cellspacing="0">\n';
+    klaviyoHtml += '                <tr><td style="padding: 20px;">' + bodyContent + '</td></tr>\n';
+    klaviyoHtml += '            </table>\n';
+    klaviyoHtml += '        </td></tr>\n';
+    klaviyoHtml += '    </table>\n';
+    klaviyoHtml += '    <table width="100%" border="0" cellpadding="0" cellspacing="0">\n';
+    klaviyoHtml += '        <tr><td style="padding: 20px; text-align: center; font-size: 12px; color: #666666;">\n';
+    klaviyoHtml += '            {{ organization.name|default:"Your Company Name" }}<br>\n';
+    klaviyoHtml += '            {% if organization.address %}{{ organization.address }}{% endif %}<br>\n';
+    klaviyoHtml += '            <a href="{% unsubscribe_url %}" style="color: #666666;">Unsubscribe</a> |\n';
+    klaviyoHtml += '            <a href="{% manage_preferences_url %}" style="color: #666666;">Manage Preferences</a>\n';
+    klaviyoHtml += '        </td></tr>\n';
+    klaviyoHtml += '    </table>\n';
+    klaviyoHtml += '    {% track_opened %}\n';
+    klaviyoHtml += '</body>\n';
+    klaviyoHtml += '</html>';
     
-    // Replace variables with Klaviyo format
+    // Replace variables
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.first_name\}\}/g, '{{ person.first_name|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.last_name\}\}/g, '{{ person.last_name|default:"" }}');
     klaviyoHtml = klaviyoHtml.replace(/\{\{contact\.email\}\}/g, '{{ person.email }}');
@@ -439,19 +342,15 @@ export const handler = async (req, res, next) => {
 
             const result = mjml2html(code, {
                 validationLevel: 'soft',
-                minify: false // Keep readable for debugging
+                minify: true
             });
 
             if (result.errors.length > 0) {
-                const criticalErrors = result.errors.filter(error => error.level === 'error');
-                if (criticalErrors.length > 0) {
-                    console.warn('MJML critical errors:', criticalErrors);
-                    return res.status(400).json({
-                        error: 'MJML validation errors',
-                        details: criticalErrors
-                    });
-                }
                 console.warn('MJML warnings:', result.errors);
+                return res.status(400).json({
+                    error: 'MJML validation errors',
+                    details: result.errors
+                });
             }
             htmlOutput = result.html;
 
@@ -625,16 +524,7 @@ export const handler = async (req, res, next) => {
             });
         }
 
-        res.status(200).json({ 
-            result: htmlOutput,
-            metadata: {
-                platform: format,
-                type: type,
-                iconConversions: true,
-                variableMapping: true,
-                complianceFooter: true
-            }
-        });
+        res.status(200).json({ result: htmlOutput });
 
     } catch (err) {
         console.error('Conversion error:', err);
