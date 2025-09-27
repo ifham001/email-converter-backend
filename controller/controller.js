@@ -141,13 +141,18 @@ const convertVariablesToHubSpot = (html) => {
     html = html.replace(/\{\{person\.last_name\}\}/g, '{{contact.lastname}}');
     html = html.replace(/\{\{person\.email\}\}/g, '{{contact.email}}');
     
-    // Company variables for CAN-SPAM compliance
+    // Company variables for CAN-SPAM compliance - using current variables
     html = html.replace(/\{\{company\.name\}\}/g, '{{site_settings.company_name}}');
     html = html.replace(/\{\{organization\.name\}\}/g, '{{site_settings.company_name}}');
     html = html.replace(/\{\{company\.address\}\}/g, '{{site_settings.company_street_address_1}}');
     html = html.replace(/\{\{company\.city\}\}/g, '{{site_settings.company_city}}');
     html = html.replace(/\{\{company\.state\}\}/g, '{{site_settings.company_state}}');
     html = html.replace(/\{\{company\.zip\}\}/g, '{{site_settings.company_zip}}');
+    
+    // Domain/website variables - use brand_settings for domain references  
+    html = html.replace(/\{\{company\.domain\}\}/g, '{{brand_settings.logo.link}}');
+    html = html.replace(/\{\{company\.website\}\}/g, '{{brand_settings.logo.link}}');
+    html = html.replace(/\{\{site_settings\.company_domain\}\}/g, '{{brand_settings.logo.link}}');
     
     // Unsubscribe links
     html = html.replace(/href="#unsubscribe"/g, 'href="{{unsubscribe_link}}"');
@@ -204,15 +209,16 @@ const addHubSpotFormatting = (html) => {
     // Apply inline styles to content
     bodyContent = inlineStyles(bodyContent, '');
     
-    // Build HubSpot email module (NO style tags at all)
-    let hubspotHtml = '<!-- HubSpot Email Module -->\n';
+    // Build HubSpot email module with required includes
+    let hubspotHtml = '{{standard_header_includes}}\n';
+    hubspotHtml += '<!-- HubSpot Email Module -->\n';
     
     // Main email content wrapper with inline styles
     hubspotHtml += '<div style="width: 100%; display: block; font-family: Arial, Helvetica, sans-serif;">\n';
     hubspotHtml += bodyContent + '\n';
     hubspotHtml += '</div>\n\n';
     
-    // CAN-SPAM footer with all inline styles
+    // CAN-SPAM footer with all inline styles - using correct variables
     hubspotHtml += '<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 40px; border-collapse: collapse; width: 100%;">\n';
     hubspotHtml += '    <tr>\n';
     hubspotHtml += '        <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666; border-top: 1px solid #eeeeee; line-height: 1.5;">\n';
@@ -232,7 +238,7 @@ const addHubSpotFormatting = (html) => {
     hubspotHtml += '        </td>\n';
     hubspotHtml += '    </tr>\n';
     hubspotHtml += '</table>\n';
-    hubspotHtml += '{{email_tracking_pixel}}';
+    hubspotHtml += '{{standard_footer_includes}}';
     
     return convertVariablesToHubSpot(hubspotHtml);
 };
