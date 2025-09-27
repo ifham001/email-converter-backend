@@ -160,58 +160,63 @@ const convertVariablesToHubSpot = (html) => {
 const addHubSpotFormatting = (html) => {
     const headContent = extractHeadContent(html);
     let bodyContent = extractBodyContent(html);
-    const bodyAttributes = extractBodyAttributes(html);
     
     // Convert SVGs to images
     bodyContent = convertSvgToImg(bodyContent);
     bodyContent = convertReactIconsToImgLinks(bodyContent);
     
-    // Build HubSpot template
-    let hubspotHtml = '<!-- HubSpot Email Template -->\n';
-    hubspotHtml += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
-    hubspotHtml += '<html xmlns="http://www.w3.org/1999/xhtml">\n';
-    hubspotHtml += '<head>\n';
-    hubspotHtml += '    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n';
-    hubspotHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n';
-    hubspotHtml += '    <meta http-equiv="X-UA-Compatible" content="IE=edge" />\n';
-    hubspotHtml += '    <title>{{content.html_title}}</title>\n';
-    hubspotHtml += '    {{standard_header_includes}}\n';
-    hubspotHtml += '    ' + headContent + '\n';
-    hubspotHtml += '    <style type="text/css">\n';
-    hubspotHtml += '        .hs_cos_wrapper_type_module { width: 100% !important; }\n';
-    hubspotHtml += '        .hs_cos_wrapper { display: block !important; }\n';
-    hubspotHtml += '        .icon-img { display: inline-block; vertical-align: middle; max-width: 100%; height: auto; }\n';
-    hubspotHtml += '        @media only screen and (max-width: 480px) {\n';
-    hubspotHtml += '            .mobile-hide { display: none !important; }\n';
-    hubspotHtml += '            .mobile-center { text-align: center !important; }\n';
-    hubspotHtml += '            .icon-img { max-width: 20px !important; }\n';
-    hubspotHtml += '        }\n';
-    hubspotHtml += '        .ExternalClass { width: 100%; }\n';
-    hubspotHtml += '        img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }\n';
-    hubspotHtml += '    </style>\n';
-    hubspotHtml += '</head>\n';
-    hubspotHtml += '<body' + bodyAttributes + '>\n';
-    hubspotHtml += '    <div id="hs_cos_wrapper_main" class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">\n';
-    hubspotHtml += '        ' + bodyContent + '\n';
-    hubspotHtml += '    </div>\n';
-    hubspotHtml += '    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">\n';
-    hubspotHtml += '        <tr>\n';
-    hubspotHtml += '            <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666;">\n';
-    hubspotHtml += '                {{site_settings.company_name}}<br>\n';
-    hubspotHtml += '                {{site_settings.company_street_address_1}}<br>\n';
-    hubspotHtml += '                {{site_settings.company_city}}, {{site_settings.company_state}} {{site_settings.company_zip}}<br>\n';
-    hubspotHtml += '                <br>\n';
-    hubspotHtml += '                {{unsubscribe_anchor}}<br>\n';
-    hubspotHtml += '                <a href="{{unsubscribe_link}}" style="color: #666666; text-decoration: underline;">Unsubscribe from this list</a> |\n';
-    hubspotHtml += '                <a href="{{unsubscribe_link_all}}" style="color: #666666; text-decoration: underline;">Unsubscribe from all emails</a> |\n';
-    hubspotHtml += '                <a href="{{subscription_preference_page_url}}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>\n';
-    hubspotHtml += '            </td>\n';
-    hubspotHtml += '        </tr>\n';
-    hubspotHtml += '    </table>\n';
-    hubspotHtml += '    {{email_tracking_pixel}}\n';
-    hubspotHtml += '    {{standard_footer_includes}}\n';
-    hubspotHtml += '</body>\n';
-    hubspotHtml += '</html>';
+    // Extract and inline CSS styles from head
+    let inlineStyles = '';
+    if (headContent) {
+        const styleMatch = headContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+        if (styleMatch) {
+            styleMatch.forEach(styleTag => {
+                const cssContent = styleTag.replace(/<\/?style[^>]*>/gi, '');
+                inlineStyles += cssContent;
+            });
+        }
+    }
+    
+    // Build HubSpot email module (no html, head, body tags)
+    let hubspotHtml = '<!-- HubSpot Email Module -->\n';
+    
+    // Add inline styles if any exist
+    if (inlineStyles) {
+        hubspotHtml += '<style type="text/css">\n';
+        hubspotHtml += inlineStyles + '\n';
+        hubspotHtml += '.hs_cos_wrapper_type_module { width: 100% !important; }\n';
+        hubspotHtml += '.hs_cos_wrapper { display: block !important; }\n';
+        hubspotHtml += '.icon-img { display: inline-block; vertical-align: middle; max-width: 100%; height: auto; }\n';
+        hubspotHtml += '@media only screen and (max-width: 480px) {\n';
+        hubspotHtml += '    .mobile-hide { display: none !important; }\n';
+        hubspotHtml += '    .mobile-center { text-align: center !important; }\n';
+        hubspotHtml += '    .icon-img { max-width: 20px !important; }\n';
+        hubspotHtml += '}\n';
+        hubspotHtml += 'img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }\n';
+        hubspotHtml += '</style>\n\n';
+    }
+    
+    // Main email content wrapper
+    hubspotHtml += '<div class="hs_cos_wrapper hs_cos_wrapper_type_module" style="width:100%;">\n';
+    hubspotHtml += bodyContent + '\n';
+    hubspotHtml += '</div>\n\n';
+    
+    // CAN-SPAM footer
+    hubspotHtml += '<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 40px;">\n';
+    hubspotHtml += '    <tr>\n';
+    hubspotHtml += '        <td style="padding: 20px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #666666; border-top: 1px solid #eeeeee;">\n';
+    hubspotHtml += '            {{site_settings.company_name}}<br>\n';
+    hubspotHtml += '            {{site_settings.company_street_address_1}}<br>\n';
+    hubspotHtml += '            {{site_settings.company_city}}, {{site_settings.company_state}} {{site_settings.company_zip}}<br>\n';
+    hubspotHtml += '            <br>\n';
+    hubspotHtml += '            {{unsubscribe_anchor}}<br>\n';
+    hubspotHtml += '            <a href="{{unsubscribe_link}}" style="color: #666666; text-decoration: underline;">Unsubscribe from this list</a> |\n';
+    hubspotHtml += '            <a href="{{unsubscribe_link_all}}" style="color: #666666; text-decoration: underline;">Unsubscribe from all emails</a> |\n';
+    hubspotHtml += '            <a href="{{subscription_preference_page_url}}" style="color: #666666; text-decoration: underline;">Manage Preferences</a>\n';
+    hubspotHtml += '        </td>\n';
+    hubspotHtml += '    </tr>\n';
+    hubspotHtml += '</table>\n';
+    hubspotHtml += '{{email_tracking_pixel}}';
     
     return convertVariablesToHubSpot(hubspotHtml);
 };
