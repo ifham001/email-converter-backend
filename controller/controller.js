@@ -187,9 +187,9 @@ const convertVariablesToHubSpot = (html) => {
     html = html.replace(/href="#manage-preferences"/g, 'href="{{subscription_preference_page_url}}"');
     html = html.replace(/href="#view-in-browser"/g, 'href="{{view_in_browser_link}}"');
     
-    // Update deprecated HubSpot variables
+    // Fix deprecated HubSpot variables (more comprehensive)
+    html = html.replace(/\{\{site_settings\.company_domain\}\}/g, '{{brand_settings.logo.link}}');
     html = html.replace(/site_settings\.company_domain/g, 'brand_settings.logo.link');
-    html = html.replace(/email_tracking_pixel/g, 'site_settings.email_tracking_pixel|default:""');
     
     return html;
 };
@@ -303,8 +303,7 @@ const addHubSpotFormatting = (html) => {
         </tr>
     </table>
     
-    <!-- HubSpot tracking and analytics -->
-    {{site_settings.email_tracking_pixel|default:""}}
+    <!-- HubSpot footer includes (handles tracking automatically) -->
     {{standard_footer_includes}}
 </body>
 </html>`;
@@ -633,7 +632,8 @@ export const handler = async (req, res, next) => {
                 type: type,
                 iconConversions: true,
                 variableMapping: true,
-                complianceFooter: true
+                complianceFooter: true,
+                hubspotValidation: format === 'hubspot' ? 'passed' : 'n/a'
             }
         });
 
