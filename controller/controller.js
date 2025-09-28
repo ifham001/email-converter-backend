@@ -471,8 +471,7 @@ const addKlaviyoFormatting = (html) => {
     
     // Add tracking pixel at the end - minimal styling to ensure it works but stays invisible
     klaviyoHtml += `
-    <!-- Klaviyo tracking pixel -->
-    <div style="font-size: 1px; line-height: 1px; color: transparent; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">{% track_opened %}</div>
+  
 </body>
 </html>`;
     
