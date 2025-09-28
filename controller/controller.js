@@ -160,14 +160,14 @@ const convertReactIconsToImgLinks = (html) => {
     return html;
 };
 
-// FIXED: Enhanced variable conversion for HubSpot with template preservation
+// FIXED: Enhanced variable conversion for HubSpot with correct template syntax
 const convertVariablesToHubSpot = (html) => {
     // Replace "Servus there" and similar greetings with HubSpot tokens
-    // Handle cases with HTML comments in between
-    html = html.replace(/>Servus <!-- -->there<!-- -->,/g, '>Servus {{contact.firstname|default:"there"}},');
-    html = html.replace(/>Servus there,/g, '>Servus {{contact.firstname|default:"there"}},');
-    html = html.replace(/\b(Hi|Hello|Dear|Hey) <!-- -->there<!-- -->\b/gi, '$1 {{contact.firstname|default:"there"}}');
-    html = html.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 {{contact.firstname|default:"there"}}');
+    // FIXED: Use correct HubSpot syntax - "or" operator instead of |default:
+    html = html.replace(/>Servus <!-- -->there<!-- -->,/g, '>Servus {{contact.firstname or "there"}},');
+    html = html.replace(/>Servus there,/g, '>Servus {{contact.firstname or "there"}},');
+    html = html.replace(/\b(Hi|Hello|Dear|Hey) <!-- -->there<!-- -->\b/gi, '$1 {{contact.firstname or "there"}}');
+    html = html.replace(/\b(Hi|Hello|Dear|Hey) there\b/gi, '$1 {{contact.firstname or "there"}}');
     
     // Contact variables
     html = html.replace(/\{\{contact\.first_name\}\}/g, '{{contact.firstname}}');
@@ -201,6 +201,10 @@ const convertVariablesToHubSpot = (html) => {
     // Fix deprecated HubSpot variables
     html = html.replace(/\{\{site_settings\.company_domain\}\}/g, '{{brand_settings.logo.link}}');
     html = html.replace(/site_settings\.company_domain/g, 'brand_settings.logo.link');
+    
+    // Clean up any remaining incorrect default syntax
+    html = html.replace(/\|default:"([^"]+)"/g, ' or "$1"');
+    html = html.replace(/\|default:'([^']+)'/g, " or '$1'");
     
     return html;
 };
@@ -694,6 +698,7 @@ export const handler = async (req, res, next) => {
                 platform: format,
                 type: type,
                 fixes: {
+                    hubspotSyntaxFixed: true,
                     iconWidthFixed: true,
                     iconNamingImproved: true,
                     personalizationTokensAdded: true,
